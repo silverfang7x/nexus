@@ -28,7 +28,7 @@ export async function POST(request: Request) {
             
             for (const event of mockData) {
               send(event);
-              await new Promise(resolve => setTimeout(resolve, 300));
+              await new Promise(resolve => setTimeout(resolve, 400));
             }
           } else {
             send({
