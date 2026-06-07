@@ -34,6 +34,7 @@ export function truncateLabel(label: string): string {
   return label;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function GraphNodeComponent(_props: GraphNodeProps) {
   return null;
 }

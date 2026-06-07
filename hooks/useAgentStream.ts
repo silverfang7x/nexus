@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { AgentEvent, GraphEdge, GraphNode, NexusMode, NexusSession, AgentId } from "@/types/nexus";
 
 export function useAgentStream() {

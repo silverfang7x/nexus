@@ -62,11 +62,11 @@ export async function POST(request: Request) {
             });
           }
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         send({
           agentId: "orchestrator",
           type: "error",
-          payload: { error: error.message || String(error) },
+          payload: { error: error instanceof Error ? error.message : String(error) },
           timestamp: Date.now()
         });
         send({
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       } finally {
         try {
           controller.close();
-        } catch (e) {
+        } catch {
           // Stream already closed
         }
       }

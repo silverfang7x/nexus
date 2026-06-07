@@ -220,7 +220,7 @@ export default function NexusGraph({
       .on('click', (event, d) => {
         if (onNodeClick) onNodeClick(d);
       })
-      .call(getDragBehavior(sim) as any);
+      .call(getDragBehavior(sim) as unknown as (selection: d3.Selection<SVGGElement, SimNode, SVGGElement, unknown>) => void);
 
     // Nested node-content to avoid tick/transition transform conflicts
     const nodeContentEnter = nodeGroupsEnter.append('g')

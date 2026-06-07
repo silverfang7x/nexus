@@ -278,7 +278,7 @@ export function AgentPanelList({ panels }: AgentPanelListProps) {
       x: 0,
       transition: {
         duration: 0.4,
-        ease: [0.16, 1, 0.3, 1] as any // premium cubic-bezier ease out
+        ease: [0.16, 1, 0.3, 1] as [number, number, number, number] // premium cubic-bezier ease out
       }
     }
   };
@@ -290,7 +290,7 @@ export function AgentPanelList({ panels }: AgentPanelListProps) {
       animate="animate"
       className="space-y-4"
     >
-      {panels.map((panel, idx) => (
+      {panels.map((panel) => (
         <motion.div key={panel.agentId} variants={itemVariants}>
           <AgentPanel
             agentId={panel.agentId}

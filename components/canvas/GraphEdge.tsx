@@ -69,6 +69,7 @@ export function getEdgeStyle(type: EdgeType): EdgeStyle {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function GraphEdgeComponent(_props: GraphEdgeProps) {
   return null;
 }

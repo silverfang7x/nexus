@@ -1,6 +1,13 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { AgentId, AgentConfig } from "@/types/nexus";
 
+/** Minimal shape of errors thrown by the Gemini SDK (not exported by the package). */
+interface GeminiError {
+  message?: string;
+  status?: number;
+  statusText?: string;
+}
+
 if (!process.env.GEMINI_API_KEY) {
   throw new Error("Missing GEMINI_API_KEY environment variable");
 }
@@ -30,23 +37,25 @@ export async function callAgent(
   try {
     const result = await chat.sendMessage(userMessage);
     return result.response.text();
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as GeminiError;
     if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.statusText === "Too Many Requests" ||
-      error?.message?.includes("Too Many Requests")
+      err?.status === 429 ||
+      err?.message?.includes("429") ||
+      err?.statusText === "Too Many Requests" ||
+      err?.message?.includes("Too Many Requests")
     ) {
       console.warn("Rate limited (429). Retrying in 4 seconds...");
       await new Promise((resolve) => setTimeout(resolve, 4000));
       try {
         const retryResult = await chat.sendMessage(userMessage);
         return retryResult.response.text();
-      } catch (retryError: any) {
-        throw new Error(`Gemini API error after retry: ${retryError.message || retryError}`);
+      } catch (retryError: unknown) {
+        const retryErr = retryError as GeminiError;
+        throw new Error(`Gemini API error after retry: ${retryErr.message || retryError}`);
       }
     }
-    throw new Error(`Gemini API error: ${error.message || error}`);
+    throw new Error(`Gemini API error: ${err.message || error}`);
   }
 }
 
@@ -72,8 +81,9 @@ export async function streamAgent(
     }
     
     return fullText;
-  } catch (error: any) {
-    throw new Error(`Gemini API streaming error: ${error.message || error}`);
+  } catch (error: unknown) {
+    const err = error as GeminiError;
+    throw new Error(`Gemini API streaming error: ${err.message || error}`);
   }
 }
 
