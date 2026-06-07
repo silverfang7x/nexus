@@ -4,9 +4,9 @@
    Tailwind v4 — uses @import "tailwindcss" + @theme for token registration.
    ========================================================================== */
 
-/* ── SECTION 1: Google Fonts ─────────────────────────────────────────────── */
-
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap');
+/* Fonts are loaded via next/font/google in app/layout.tsx (Syne + DM Mono).
+   CSS variables --font-syne and --font-dm-mono are injected on <html>.
+   Referenced below via var() in --nx-font-display and --nx-font-mono. */
 
 /* ── SECTION 2: Tailwind v4 entry point ──────────────────────────────────── */
 
@@ -27,8 +27,9 @@
   --nx-border-active: rgba(255, 255, 255, 0.40);
 
   /* === TYPOGRAPHY === */
-  --nx-font-display: 'Syne', sans-serif;
-  --nx-font-mono: 'DM Mono', monospace;
+  /* --font-syne and --font-dm-mono are injected by next/font/google on <html> */
+  --nx-font-display: var(--font-syne, 'Syne', sans-serif);
+  --nx-font-mono: var(--font-dm-mono, 'DM Mono', monospace);
 
   /* === TEXT === */
   --nx-text-primary: rgba(255, 255, 255, 0.92);
@@ -75,9 +76,9 @@
 /* bg-nx-elevated, font-display, font-mono).                                  */
 
 @theme inline {
-  /* Font families */
-  --font-display: 'Syne', sans-serif;
-  --font-mono: 'DM Mono', monospace;
+  /* Font families — resolved from next/font/google CSS variables on <html> */
+  --font-display: var(--font-syne, 'Syne', sans-serif);
+  --font-mono: var(--font-dm-mono, 'DM Mono', monospace);
 
   /* NEXUS color palette */
   --color-nx-bg: #0A0A0F;
