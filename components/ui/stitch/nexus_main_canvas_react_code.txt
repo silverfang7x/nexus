@@ -1,0 +1,156 @@
+/* 
+  NEXUS: Main Canvas React Component
+  A dark editorial UI for autonomous AI debate and research.
+*/
+
+import React, { useState } from 'react';
+import { Settings, Bell, Network, FileText, Users, Code, Layout, MessageSquare } from 'lucide-react';
+
+const NexusMainCanvas = () => {
+  const [activeMode, setActiveMode] = useState('PLAN');
+
+  const agents = [
+    { id: 'A', name: 'ANALYTICS_NODE', color: 'text-[#1D9E75]', border: 'border-[#1D9E75]/30', cpu: '42%' },
+    { id: 'L', name: 'LOGIC_SYNTH', color: 'text-[#378ADD]', border: 'border-[#378ADD]/30', cpu: '88%' },
+    { id: 'R', name: 'RESEARCH_CORE', color: 'text-[#7F77DD]', border: 'border-[#7F77DD]/30', cpu: '12%' },
+    { id: 'P', name: 'PLAN_EXECUTOR', color: 'text-[#E8593C]', border: 'border-[#E8593C]/30', status: 'ACTIVE' },
+  ];
+
+  const modes = ['DEBATE', 'RESEARCH', 'CODE', 'PLAN'];
+
+  return (
+    <div className="flex h-screen w-full bg-[#0A0A0F] text-white font-mono selection:bg-[#7F77DD]/30 overflow-hidden relative">
+      {/* Grain Texture Overlay */}
+      <div className="absolute inset-0 opacity-[0.08] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
+
+      {/* Left Sidebar: Agents */}
+      <div className="w-80 h-full border-r border-white/10 flex flex-col z-10 bg-black/20 backdrop-blur-md">
+        <div className="p-6 border-b border-white/10">
+          <h2 className="font-display text-xs tracking-widest text-white/40 uppercase">Active Agent Swarm</h2>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {agents.map((agent) => (
+            <div key={agent.id} className={`p-4 border ${agent.border} bg-white/[0.02] backdrop-blur-xl relative overflow-hidden`}>
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-2">
+                  <span className={`w-5 h-5 flex items-center justify-center text-[10px] font-bold border ${agent.border} ${agent.color}`}>
+                    {agent.id}
+                  </span>
+                  <span className={`text-[10px] font-bold tracking-wider ${agent.color}`}>{agent.name}</span>
+                </div>
+                <span className="text-[10px] text-white/30 uppercase">{agent.cpu || agent.status}</span>
+              </div>
+              <div className="text-[11px] leading-relaxed text-white/60 space-y-2">
+                <p>&gt; Ingesting structural dataset...</p>
+                <p>&gt; Parsing graph topologies...</p>
+                <p>&gt; Identifying cluster anomalies...</p>
+                <div className="h-1 w-full bg-white/5 mt-4">
+                  <div className="h-full bg-white/20 w-1/3 animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Main Canvas: D3 Visualization Area */}
+      <div className="flex-1 relative flex flex-col">
+        {/* Header */}
+        <header className="h-16 border-b border-white/10 flex items-center justify-between px-8 z-20">
+          <h1 className="font-display text-2xl font-bold tracking-tighter text-[#7F77DD]">NEXUS</h1>
+          <nav className="flex items-center gap-8 text-[10px] font-bold tracking-[0.2em] text-white/40 uppercase">
+            <a href="#" className="hover:text-white transition-colors">Network</a>
+            <a href="#" className="hover:text-white transition-colors">Logs</a>
+            <a href="#" className="hover:text-white transition-colors">Agents</a>
+          </nav>
+          <div className="flex items-center gap-4 text-white/40">
+            <Settings size={18} className="hover:text-white cursor-pointer" />
+            <Bell size={18} className="hover:text-white cursor-pointer" />
+          </div>
+        </header>
+
+        {/* Graph Area */}
+        <div className="flex-1 relative overflow-hidden flex items-center justify-center">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#13131F_0%,_transparent_70%)] opacity-50"></div>
+          
+          {/* Abstract Graph Elements */}
+          <div className="relative w-[600px] h-[600px]">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border border-[#7F77DD] rotate-45 flex items-center justify-center">
+              <div className="w-2 h-2 bg-[#7F77DD] shadow-[0_0_10px_#7F77DD]"></div>
+            </div>
+            {/* Connecting Lines */}
+            {[0, 72, 144, 216, 288].map((deg) => (
+              <div 
+                key={deg}
+                className="absolute top-1/2 left-1/2 h-[1px] bg-white/10 origin-left"
+                style={{ width: '200px', transform: `rotate(${deg}deg)` }}
+              >
+                <div className="absolute right-0 w-2 h-2 border border-white/20 -translate-y-1/2 rotate-45"></div>
+              </div>
+            ))}
+          </div>
+
+          {/* Graph Stats */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-6 text-[9px] font-bold tracking-widest text-white/30 uppercase bg-black/40 backdrop-blur-md px-6 py-2 border border-white/5">
+            <span>Nodes: 1,402</span>
+            <span>Edges: 3,921</span>
+            <span>Tension: Nominal</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Sidebar: Modes & Input */}
+      <div className="w-96 h-full border-l border-white/10 flex flex-col z-10 bg-black/20 backdrop-blur-md">
+        <div className="p-8 space-y-12">
+          {/* Brand/Version */}
+          <div>
+            <h2 className="font-display text-4xl font-bold tracking-tight">NEXUS CORE</h2>
+            <p className="text-[10px] text-white/20 mt-1 uppercase tracking-widest font-bold">V2.0.4-STABLE</p>
+          </div>
+
+          {/* Mode Selector */}
+          <div className="space-y-2">
+            {modes.map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setActiveMode(mode)}
+                className={`w-full flex items-center justify-between p-4 group transition-all duration-300 relative ${
+                  activeMode === mode ? 'bg-white/[0.05] text-white' : 'text-white/30 hover:text-white/60'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  {mode === 'DEBATE' && <MessageSquare size={16} />}
+                  {mode === 'RESEARCH' && <Layout size={16} />}
+                  {mode === 'CODE' && <Code size={16} />}
+                  {mode === 'PLAN' && <Network size={16} />}
+                  <span className="font-display text-2xl font-bold tracking-tight uppercase italic">{mode}</span>
+                </div>
+                {activeMode === mode && (
+                  <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-[#7F77DD]"></div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Input Area */}
+        <div className="mt-auto p-8 border-t border-white/10 space-y-6 bg-white/[0.01]">
+          <div className="space-y-2">
+            <label className="text-[9px] font-bold text-white/40 tracking-widest uppercase">Synthesis Query</label>
+            <div className="relative">
+              <textarea 
+                className="w-full h-32 bg-transparent border border-white/10 p-4 text-xs text-white/80 focus:outline-none focus:border-[#7F77DD]/50 transition-colors resize-none placeholder:text-white/10"
+                placeholder="Instruct the swarm..."
+              ></textarea>
+            </div>
+          </div>
+          <button className="w-full py-4 border border-white/20 text-[10px] font-bold tracking-[0.3em] uppercase hover:bg-white hover:text-black transition-all duration-300">
+            Execute
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default NexusMainCanvas;

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NEXUS - Main Canvas</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400&amp;family=JetBrains+Mono:wght@400;500&amp;family=Syne:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-low": "#1c1b21",
+                    "error": "#ffb4ab",
+                    "secondary-fixed-dim": "#ffb4a4",
+                    "on-background": "#e5e1ea",
+                    "error-container": "#93000a",
+                    "surface-container-highest": "#35343b",
+                    "surface-container-high": "#2a2930",
+                    "on-tertiary-container": "#362700",
+                    "primary-fixed": "#e4dfff",
+                    "secondary-fixed": "#ffdad3",
+                    "surface-dim": "#131319",
+                    "on-tertiary-fixed-variant": "#5a4300",
+                    "secondary-container": "#8d1701",
+                    "on-secondary-fixed-variant": "#8d1701",
+                    "tertiary": "#efc04c",
+                    "on-primary-container": "#23127d",
+                    "on-surface-variant": "#c8c4d4",
+                    "on-error-container": "#ffdad6",
+                    "surface-variant": "#35343b",
+                    "secondary": "#ffb4a4",
+                    "on-primary-fixed-variant": "#41379b",
+                    "inverse-on-surface": "#313036",
+                    "on-primary": "#2a1c84",
+                    "background": "#131319",
+                    "tertiary-fixed-dim": "#efc04c",
+                    "on-primary-fixed": "#140067",
+                    "inverse-primary": "#5951b4",
+                    "primary": "#c5c0ff",
+                    "on-tertiary": "#3f2e00",
+                    "on-tertiary-fixed": "#251a00",
+                    "primary-container": "#8c84eb",
+                    "outline-variant": "#474552",
+                    "surface-container": "#201f25",
+                    "outline": "#928f9d",
+                    "tertiary-container": "#b38b15",
+                    "on-secondary-fixed": "#3e0500",
+                    "on-secondary-container": "#ff9a85",
+                    "surface-bright": "#3a383f",
+                    "on-error": "#690005",
+                    "tertiary-fixed": "#ffdf98",
+                    "inverse-surface": "#e5e1ea",
+                    "surface": "#131319",
+                    "surface-container-lowest": "#0e0d14",
+                    "primary-fixed-dim": "#c5c0ff",
+                    "on-surface": "#e5e1ea",
+                    "surface-tint": "#c5c0ff",
+                    "on-secondary": "#640d00"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0px", // OVERRIDE TO 0px for sharp edges as per guidance
+                    "lg": "0px",
+                    "xl": "0px",
+                    "full": "0px"
+            },
+            "spacing": {
+                    "margin": "48px",
+                    "gutter": "24px",
+                    "unit": "4px",
+                    "container-max": "1440px"
+            },
+            "fontFamily": {
+                    "body-md": [
+                            "Geist"
+                    ],
+                    "label-caps": [
+                            "JetBrains Mono"
+                    ],
+                    "display-lg": [
+                            "Syne"
+                    ],
+                    "headline-md": [
+                            "Syne"
+                    ],
+                    "headline-sm": [
+                            "Syne"
+                    ],
+                    "display-xl": [
+                            "Syne"
+                    ],
+                    "mono-code": [
+                            "JetBrains Mono"
+                    ],
+                    "body-lg": [
+                            "Geist"
+                    ]
+            },
+            "fontSize": {
+                    "body-md": [
+                            "16px",
+                            {
+                                    "lineHeight": "1.6",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "label-caps": [
+                            "12px",
+                            {
+                                    "lineHeight": "1",
+                                    "letterSpacing": "0.1em",
+                                    "fontWeight": "500"
+                            }
+                    ],
+                    "display-lg": [
+                            "48px",
+                            {
+                                    "lineHeight": "1.1",
+                                    "letterSpacing": "-0.01em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "headline-md": [
+                            "32px",
+                            {
+                                    "lineHeight": "1.2",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "headline-sm": [
+                            "24px",
+                            {
+                                    "lineHeight": "1.3",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "display-xl": [
+                            "72px",
+                            {
+                                    "lineHeight": "1.1",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "800"
+                            }
+                    ],
+                    "mono-code": [
+                            "14px",
+                            {
+                                    "lineHeight": "1.5",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "body-lg": [
+                            "18px",
+                            {
+                                    "lineHeight": "1.6",
+                                    "fontWeight": "400"
+                            }
+                    ]
+            }
+    },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0A0A0F;
+            color: #e5e1ea;
+        }
+        
+        /* 8% grain texture */
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.08;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* Custom minimal scrollbar */
+        ::-webkit-scrollbar {
+            width: 3px;
+            height: 3px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c5c0ff;
+        }
+
+        .glass-panel {
+            background-color: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Synthetic D3 Grid Background placeholder */
+        .grid-bg {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+        }
+
+        .text-neon-teal { color: #2dd4bf; }
+        .text-neon-blue { color: #60a5fa; }
+        .text-neon-purple { color: #c084fc; }
+        .text-neon-coral { color: #fb7185; }
+        
+        .border-neon-teal { border-color: rgba(45, 212, 191, 0.3); }
+        .border-neon-blue { border-color: rgba(96, 165, 250, 0.3); }
+        .border-neon-purple { border-color: rgba(192, 132, 252, 0.3); }
+        .border-neon-coral { border-color: rgba(251, 113, 133, 0.3); }
+
+        .blinking-cursor::after {
+            content: '█';
+            animation: blink 1s step-end infinite;
+            margin-left: 2px;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md h-screen w-screen overflow-hidden flex">
+<div class="noise-overlay"></div>
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-40 bg-surface/40 backdrop-blur-xl flex justify-between items-center px-margin py-4 border-b border-outline-variant/10">
+<div class="text-headline-sm font-display-lg font-bold tracking-tighter text-primary">
+            NEXUS
+        </div>
+<nav class="hidden md:flex space-x-gutter">
+<a class="text-label-caps font-label-caps text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">NETWORK</a>
+<a class="text-label-caps font-label-caps text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">LOGS</a>
+<a class="text-label-caps font-label-caps text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">AGENTS</a>
+</nav>
+<div class="flex items-center space-x-unit">
+<button class="p-2 text-on-surface-variant hover:text-primary scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+</div>
+</header>
+<div class="flex w-full h-full pt-[80px]"> <!-- pt offsets TopAppBar -->
+<!-- Left Sidebar: Stacked Agent Panels -->
+<aside class="w-80 h-full flex flex-col border-r border-outline-variant/10 bg-surface-container-low/20 overflow-y-auto">
+<div class="p-4 border-b border-outline-variant/10">
+<h2 class="text-label-caps font-label-caps text-on-surface-variant">ACTIVE AGENT SWARM</h2>
+</div>
+<!-- Agent 1: Teal -->
+<div class="glass-panel m-4 flex-shrink-0">
+<div class="border-b border-outline-variant/10 p-2 flex items-center justify-between">
+<div class="flex items-center space-x-2">
+<div class="w-4 h-4 bg-transparent border border-neon-teal text-neon-teal flex items-center justify-center text-[10px] font-mono-code font-bold">A</div>
+<span class="text-label-caps font-label-caps text-neon-teal">ANALYTICS_NODE</span>
+</div>
+<span class="text-[10px] font-mono-code text-on-surface-variant">CPU: 42%</span>
+</div>
+<div class="p-3 h-24 overflow-y-auto text-mono-code font-mono-code text-on-surface-variant opacity-80 leading-tight">
+                    &gt; Ingesting structural dataset...<br/>
+                    &gt; Parsing graph topologies...<br/>
+                    &gt; Identifying cluster anomalies...<br/>
+                    &gt; <span class="text-neon-teal">Found 3 loose nodes.</span><br/>
+                    &gt; Recalculating tension vectors...
+                </div>
+</div>
+<!-- Agent 2: Blue -->
+<div class="glass-panel m-4 mt-0 flex-shrink-0">
+<div class="border-b border-outline-variant/10 p-2 flex items-center justify-between">
+<div class="flex items-center space-x-2">
+<div class="w-4 h-4 bg-transparent border border-neon-blue text-neon-blue flex items-center justify-center text-[10px] font-mono-code font-bold">L</div>
+<span class="text-label-caps font-label-caps text-neon-blue">LOGIC_SYNTH</span>
+</div>
+<span class="text-[10px] font-mono-code text-on-surface-variant">CPU: 88%</span>
+</div>
+<div class="p-3 h-24 overflow-y-auto text-mono-code font-mono-code text-on-surface-variant opacity-80 leading-tight">
+                    &gt; Evaluating Analytics output...<br/>
+                    &gt; Validating node integrity...<br/>
+                    &gt; <span class="text-neon-blue">Warning: Tension threshold exceeded.</span><br/>
+                    &gt; Proposing structural reinforcement...
+                </div>
+</div>
+<!-- Agent 3: Purple -->
+<div class="glass-panel m-4 mt-0 flex-shrink-0">
+<div class="border-b border-outline-variant/10 p-2 flex items-center justify-between">
+<div class="flex items-center space-x-2">
+<div class="w-4 h-4 bg-transparent border border-neon-purple text-neon-purple flex items-center justify-center text-[10px] font-mono-code font-bold">R</div>
+<span class="text-label-caps font-label-caps text-neon-purple">RESEARCH_CORE</span>
+</div>
+<span class="text-[10px] font-mono-code text-on-surface-variant">CPU: 12%</span>
+</div>
+<div class="p-3 h-24 overflow-y-auto text-mono-code font-mono-code text-on-surface-variant opacity-80 leading-tight">
+                    &gt; Querying historical models...<br/>
+                    &gt; Fetching architectural precedents...<br/>
+                    &gt; Standby for synthesis.<br/>
+<span class="blinking-cursor"></span>
+</div>
+</div>
+<!-- Agent 4: Coral -->
+<div class="glass-panel m-4 mt-0 flex-shrink-0 border-neon-coral"> <!-- Active Highlight -->
+<div class="border-b border-outline-variant/10 p-2 flex items-center justify-between">
+<div class="flex items-center space-x-2">
+<div class="w-4 h-4 bg-neon-coral text-background flex items-center justify-center text-[10px] font-mono-code font-bold">P</div>
+<span class="text-label-caps font-label-caps text-neon-coral">PLAN_EXECUTOR</span>
+</div>
+<span class="text-[10px] font-mono-code text-neon-coral font-bold">ACTIVE</span>
+</div>
+<div class="p-3 h-24 overflow-y-auto text-mono-code font-mono-code text-on-surface-variant opacity-80 leading-tight">
+                    &gt; Awaiting consensus...<br/>
+                    &gt; Preparing deployment manifest...<br/>
+                    &gt; Locking grid coordinates...<br/>
+                    &gt; <span class="text-neon-coral font-bold blinking-cursor">AWAITING_USER_INPUT</span>
+</div>
+</div>
+</aside>
+<!-- Main Canvas: Center D3 Graph Area -->
+<main class="flex-grow h-full relative grid-bg flex items-center justify-center">
+<!-- Simulated Graph Visualization -->
+<div class="relative w-[600px] h-[600px] flex items-center justify-center">
+<!-- Center Node -->
+<div class="absolute w-8 h-8 rounded-none border border-primary bg-primary/10 flex items-center justify-center z-10 shadow-[0_0_15px_rgba(197,192,255,0.3)]">
+<div class="w-2 h-2 bg-primary"></div>
+</div>
+<!-- Connections (SVG lines) -->
+<svg class="absolute inset-0 w-full h-full" style="pointer-events:none;">
+<line stroke="rgba(255,255,255,0.1)" stroke-width="1" x1="300" x2="150" y1="300" y2="150"></line>
+<line stroke="rgba(255,255,255,0.1)" stroke-width="1" x1="300" x2="450" y1="300" y2="200"></line>
+<line stroke="rgba(255,255,255,0.1)" stroke-width="1" x1="300" x2="200" y1="300" y2="450"></line>
+<line stroke="rgba(255,255,255,0.1)" stroke-width="1" x1="300" x2="400" y1="300" y2="400"></line>
+</svg>
+<!-- Peripheral Nodes -->
+<div class="absolute top-[134px] left-[134px] w-4 h-4 border border-outline-variant bg-surface"></div>
+<div class="absolute top-[184px] left-[434px] w-4 h-4 border border-outline-variant bg-surface"></div>
+<div class="absolute top-[434px] left-[184px] w-4 h-4 border border-outline-variant bg-surface"></div>
+<div class="absolute top-[384px] left-[384px] w-4 h-4 border border-outline-variant bg-surface"></div>
+</div>
+<div class="absolute bottom-4 left-4 flex space-x-2">
+<span class="text-[10px] font-mono-code px-2 py-1 border border-outline-variant/30 text-on-surface-variant">NODES: 1,402</span>
+<span class="text-[10px] font-mono-code px-2 py-1 border border-outline-variant/30 text-on-surface-variant">EDGES: 3,921</span>
+<span class="text-[10px] font-mono-code px-2 py-1 border border-outline-variant/30 text-primary">TENSION: NOMINAL</span>
+</div>
+</main>
+<!-- Right Panel: Controls & Input -->
+<aside class="w-96 h-full flex flex-col border-l border-outline-variant/10 bg-surface/80 backdrop-blur-md">
+<!-- Mode Selector Tabs (SideNavBar conceptual logic mapped here) -->
+<div class="flex flex-col pt-6 px-6">
+<h3 class="text-headline-sm font-headline-sm text-primary mb-6">NEXUS CORE<br/><span class="text-label-caps font-label-caps text-on-surface-variant font-normal">V2.0.4-STABLE</span></h3>
+<nav class="flex flex-col space-y-unit">
+<a class="flex items-center text-on-surface-variant pl-4 py-3 hover:bg-primary/5 hover:text-primary transition-all group" href="#">
+<span class="material-symbols-outlined mr-3 text-[18px] group-hover:text-primary" data-icon="forum">forum</span>
+<span class="text-headline-sm font-headline-sm text-[16px] tracking-widest">DEBATE</span>
+</a>
+<a class="flex items-center text-on-surface-variant pl-4 py-3 hover:bg-primary/5 hover:text-primary transition-all group" href="#">
+<span class="material-symbols-outlined mr-3 text-[18px] group-hover:text-primary" data-icon="analytics">analytics</span>
+<span class="text-headline-sm font-headline-sm text-[16px] tracking-widest">RESEARCH</span>
+</a>
+<a class="flex items-center text-on-surface-variant pl-4 py-3 hover:bg-primary/5 hover:text-primary transition-all group" href="#">
+<span class="material-symbols-outlined mr-3 text-[18px] group-hover:text-primary" data-icon="code">code</span>
+<span class="text-headline-sm font-headline-sm text-[16px] tracking-widest">CODE</span>
+</a>
+<a class="flex items-center text-primary border-l-2 border-primary pl-4 py-3 bg-primary/5 translate-x-1 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined mr-3 text-[18px]" data-icon="terminal">terminal</span>
+<span class="text-headline-sm font-headline-sm text-[16px] tracking-widest">PLAN</span>
+</a>
+</nav>
+</div>
+<div class="flex-grow"></div>
+<!-- Query Input Area -->
+<div class="p-6 border-t border-outline-variant/10 bg-surface-container-lowest">
+<label class="block text-label-caps font-label-caps text-on-surface-variant mb-2">SYNTHESIS QUERY</label>
+<div class="relative group">
+<textarea class="w-full h-32 bg-transparent border-0 border-b border-outline-variant text-body-md font-body-md text-on-surface focus:ring-0 focus:border-b-2 focus:border-primary transition-colors resize-none p-2 placeholder:text-on-surface-variant/50" placeholder="Instruct the swarm..."></textarea>
+<!-- Sharp 0px button -->
+<button class="absolute bottom-2 right-2 border border-outline-variant/50 px-4 py-1 text-label-caps font-label-caps text-on-surface hover:bg-primary hover:text-background hover:border-primary transition-colors">
+                        EXECUTE
+                    </button>
+</div>
+</div>
+</aside>
+</div>
+</body></html>

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NEXUS - Debate Mode</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400&amp;family=JetBrains+Mono:wght@400;500&amp;family=Syne:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-low": "#1c1b21",
+                        "error": "#ffb4ab",
+                        "secondary-fixed-dim": "#ffb4a4",
+                        "on-background": "#e5e1ea",
+                        "error-container": "#93000a",
+                        "surface-container-highest": "#35343b",
+                        "surface-container-high": "#2a2930",
+                        "on-tertiary-container": "#362700",
+                        "primary-fixed": "#e4dfff",
+                        "secondary-fixed": "#ffdad3",
+                        "surface-dim": "#131319",
+                        "on-tertiary-fixed-variant": "#5a4300",
+                        "secondary-container": "#8d1701",
+                        "on-secondary-fixed-variant": "#8d1701",
+                        "tertiary": "#efc04c",
+                        "on-primary-container": "#23127d",
+                        "on-surface-variant": "#c8c4d4",
+                        "on-error-container": "#ffdad6",
+                        "surface-variant": "#35343b",
+                        "secondary": "#ffb4a4",
+                        "on-primary-fixed-variant": "#41379b",
+                        "inverse-on-surface": "#313036",
+                        "on-primary": "#2a1c84",
+                        "background": "#131319",
+                        "tertiary-fixed-dim": "#efc04c",
+                        "on-primary-fixed": "#140067",
+                        "inverse-primary": "#5951b4",
+                        "primary": "#c5c0ff",
+                        "on-tertiary": "#3f2e00",
+                        "on-tertiary-fixed": "#251a00",
+                        "primary-container": "#8c84eb",
+                        "outline-variant": "#474552",
+                        "surface-container": "#201f25",
+                        "outline": "#928f9d",
+                        "tertiary-container": "#b38b15",
+                        "on-secondary-fixed": "#3e0500",
+                        "on-secondary-container": "#ff9a85",
+                        "surface-bright": "#3a383f",
+                        "on-error": "#690005",
+                        "tertiary-fixed": "#ffdf98",
+                        "inverse-surface": "#e5e1ea",
+                        "surface": "#131319",
+                        "surface-container-lowest": "#0e0d14",
+                        "primary-fixed-dim": "#c5c0ff",
+                        "on-surface": "#e5e1ea",
+                        "surface-tint": "#c5c0ff",
+                        "on-secondary": "#640d00"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin": "48px",
+                        "gutter": "24px",
+                        "unit": "4px",
+                        "container-max": "1440px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Geist"],
+                        "label-caps": ["JetBrains Mono"],
+                        "display-lg": ["Syne"],
+                        "headline-md": ["Syne"],
+                        "headline-sm": ["Syne"],
+                        "display-xl": ["Syne"],
+                        "mono-code": ["JetBrains Mono"],
+                        "body-lg": ["Geist"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "label-caps": ["12px", { "lineHeight": "1", "letterSpacing": "0.1em", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "headline-md": ["32px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "headline-sm": ["24px", { "lineHeight": "1.3", "fontWeight": "600" }],
+                        "display-xl": ["72px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "mono-code": ["14px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0A0A0F;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+            color: theme('colors.on-surface');
+        }
+        
+        .glass-panel {
+            background-color: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-panel-active-primary {
+            border-color: theme('colors.primary');
+        }
+
+        .glass-panel-active-error {
+            border-color: theme('colors.error');
+        }
+
+        .glitch-avatar {
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(255, 255, 255, 0.1),
+                rgba(255, 255, 255, 0.1) 2px,
+                transparent 2px,
+                transparent 4px
+            );
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 3px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: theme('colors.primary');
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md min-h-screen flex flex-col md:flex-row overflow-hidden">
+<!-- SideNavBar (JSON Component) -->
+<nav class="hidden md:flex flex-col h-screen w-64 sticky left-0 py-gutter space-y-unit bg-surface-container-low/40 backdrop-blur-xl border-r border-outline-variant/10 shrink-0 z-50">
+<div class="px-4 mb-8">
+<h1 class="text-label-caps font-label-caps text-primary tracking-tighter">NEXUS CORE</h1>
+<p class="text-[10px] font-label-caps text-on-surface-variant mt-1 opacity-70">V2.0.4-STABLE</p>
+</div>
+<div class="flex-1 flex flex-col gap-2">
+<!-- Active Tab: DEBATE -->
+<a class="flex items-center gap-3 text-primary border-l-2 border-primary pl-4 py-2 hover:bg-primary/5 hover:text-primary transition-all translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">forum</span>
+<span class="text-label-caps font-label-caps">DEBATE</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant pl-4 py-2 hover:bg-primary/5 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">analytics</span>
+<span class="text-label-caps font-label-caps">RESEARCH</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant pl-4 py-2 hover:bg-primary/5 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">code</span>
+<span class="text-label-caps font-label-caps">CODE</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant pl-4 py-2 hover:bg-primary/5 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">terminal</span>
+<span class="text-label-caps font-label-caps">PLAN</span>
+</a>
+</div>
+<div class="px-4 mt-auto space-y-4">
+<button class="w-full py-2 border border-outline-variant/30 text-primary text-label-caps font-label-caps hover:bg-primary hover:text-on-primary transition-colors">
+                NEW SESSION
+            </button>
+<div class="pt-4 border-t border-outline-variant/10 space-y-2">
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">menu_book</span>
+<span class="text-[10px] font-label-caps">DOCUMENTATION</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">contact_support</span>
+<span class="text-[10px] font-label-caps">SUPPORT</span>
+</a>
+</div>
+</div>
+</nav>
+<!-- Main Workspace -->
+<main class="flex-1 flex flex-col md:flex-row h-screen relative">
+<!-- TopNavBar (Mobile Only Fallback based on instructions, but keeping it structurally hidden on md to focus on the workspace layout requested) -->
+<header class="md:hidden flex justify-between items-center px-4 py-4 w-full bg-surface/40 backdrop-blur-xl border-b border-outline-variant/10 sticky top-0 z-40">
+<h1 class="text-headline-sm font-display-lg font-bold tracking-tighter text-primary">NEXUS</h1>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-primary">settings</span>
+<span class="material-symbols-outlined text-primary">notifications</span>
+</div>
+</header>
+<!-- Left Sidebar: Agent Thought Streams (Split from prompt) -->
+<aside class="w-full md:w-80 lg:w-96 flex flex-col h-full border-r border-outline-variant/10 shrink-0 bg-surface-dim/50 z-10">
+<!-- Advocate Panel -->
+<div class="flex-1 flex flex-col glass-panel glass-panel-active-primary m-4 mb-2 overflow-hidden">
+<header class="border-b border-outline-variant/20 p-3 flex justify-between items-center bg-primary/5">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 glitch-avatar bg-primary/20 flex items-center justify-center border border-primary/50 text-primary text-label-caps font-label-caps">A</div>
+<h2 class="text-label-caps font-label-caps text-primary">ADVOCATE_NODE</h2>
+</div>
+<span class="px-2 py-0.5 bg-primary/10 border border-primary/30 text-primary text-[10px] font-mono-code uppercase">Active</span>
+</header>
+<div class="flex-1 p-4 overflow-y-auto space-y-3 font-mono-code text-mono-code text-on-surface-variant/80">
+<p>&gt; Initiating synthesis protocol...</p>
+<p>&gt; Analyzing structural dependencies.</p>
+<p class="text-primary">&gt; Proposition valid: Centralized state management reduces latency by 14%.</p>
+<p>&gt; Compiling supporting evidence streams...</p>
+<div class="h-2 w-2 rounded-full bg-primary animate-pulse mt-4"></div>
+</div>
+</div>
+<!-- Challenger Panel -->
+<div class="flex-1 flex flex-col glass-panel glass-panel-active-error m-4 mt-2 overflow-hidden">
+<header class="border-b border-outline-variant/20 p-3 flex justify-between items-center bg-error/5">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 glitch-avatar bg-error/20 flex items-center justify-center border border-error/50 text-error text-label-caps font-label-caps">C</div>
+<h2 class="text-label-caps font-label-caps text-error">CHALLENGER_NODE</h2>
+</div>
+<span class="px-2 py-0.5 bg-error/10 border border-error/30 text-error text-[10px] font-mono-code uppercase">Injecting</span>
+</header>
+<div class="flex-1 p-4 overflow-y-auto space-y-3 font-mono-code text-mono-code text-on-surface-variant/80">
+<p>&gt; Intercepting logic flow...</p>
+<p class="text-error">&gt; Counter-proposition: Single point of failure introduced.</p>
+<p>&gt; Evaluating risk metrics across distributed clusters.</p>
+<p>&gt; Hypothesis: Decentralization outweighs latency gains in high-availability scenarios.</p>
+<div class="h-2 w-2 rounded-full bg-error animate-pulse mt-4"></div>
+</div>
+</div>
+</aside>
+<!-- Center Canvas: D3 Graph Area (Simulated) -->
+<section class="flex-1 relative overflow-hidden flex flex-col">
+<!-- Canvas Header Toolbar -->
+<div class="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-20 pointer-events-none">
+<div class="glass-panel px-4 py-2 pointer-events-auto flex gap-4">
+<span class="text-label-caps font-label-caps text-on-surface">TOPIC: STATE ARCHITECTURE</span>
+<span class="text-label-caps font-label-caps text-outline">|</span>
+<span class="text-label-caps font-label-caps text-primary animate-pulse">SYNTHESIZING</span>
+</div>
+<div class="glass-panel p-2 pointer-events-auto flex gap-2">
+<button class="p-1 hover:bg-surface-variant/50 border border-transparent hover:border-outline-variant/30 transition-colors">
+<span class="material-symbols-outlined text-[20px]">zoom_in</span>
+</button>
+<button class="p-1 hover:bg-surface-variant/50 border border-transparent hover:border-outline-variant/30 transition-colors">
+<span class="material-symbols-outlined text-[20px]">zoom_out</span>
+</button>
+<button class="p-1 hover:bg-surface-variant/50 border border-transparent hover:border-outline-variant/30 transition-colors">
+<span class="material-symbols-outlined text-[20px]">filter_center_focus</span>
+</button>
+</div>
+</div>
+<!-- The Graph Canvas Background -->
+<div class="absolute inset-0 z-0 opacity-40 mix-blend-screen" style="background-image: radial-gradient(circle at center, rgba(197, 192, 255, 0.1) 0%, transparent 70%);">
+</div>
+<!-- Simulated Graph Nodes & Lines -->
+<div class="flex-1 relative z-10 flex items-center justify-center p-12">
+<!-- Central Conflict Node -->
+<div class="absolute w-32 h-32 border border-outline-variant/20 rounded-full flex items-center justify-center" style="left: 50%; top: 50%; transform: translate(-50%, -50%);">
+<div class="w-16 h-16 border border-primary/50 bg-primary/10 rounded-full animate-[spin_10s_linear_infinite]"></div>
+<div class="absolute text-label-caps font-label-caps text-on-surface text-center">CORE<br/>NEXUS</div>
+</div>
+<!-- Advocate Nodes (Coral/Primary leaning) -->
+<div class="absolute flex flex-col items-end gap-12" style="left: 20%; top: 30%;">
+<div class="glass-panel border-primary/40 px-4 py-2 relative group cursor-pointer hover:border-primary transition-colors">
+<span class="text-label-caps font-label-caps text-primary">THESIS_ALPHA</span>
+<!-- Connection Line to Center -->
+<div class="absolute h-[1px] bg-primary/40 w-48 -right-48 top-1/2 transform origin-left rotate-[15deg]"></div>
+</div>
+<div class="glass-panel border-primary/40 px-4 py-2 relative group cursor-pointer hover:border-primary transition-colors">
+<span class="text-label-caps font-label-caps text-primary">DATA_NODE_12</span>
+<div class="absolute h-[1px] bg-primary/40 w-56 -right-56 top-1/2 transform origin-left rotate-[-10deg]"></div>
+</div>
+</div>
+<!-- Challenger Nodes (Red/Error leaning) -->
+<div class="absolute flex flex-col items-start gap-16" style="right: 15%; top: 40%;">
+<div class="glass-panel border-error/40 px-4 py-2 relative group cursor-pointer hover:border-error transition-colors">
+<span class="text-label-caps font-label-caps text-error">ANTI_THESIS</span>
+<!-- Connection Line to Center -->
+<div class="absolute h-[1px] bg-error/40 w-48 -left-48 top-1/2 transform origin-right rotate-[-20deg]"></div>
+</div>
+<div class="glass-panel border-error/40 px-4 py-2 relative group cursor-pointer hover:border-error transition-colors mt-8">
+<span class="text-label-caps font-label-caps text-error">RISK_VECTOR_Z</span>
+<div class="absolute h-[1px] bg-error/40 w-56 -left-56 top-1/2 transform origin-right rotate-[5deg]"></div>
+</div>
+</div>
+<!-- Floating Attribution Chips -->
+<div class="absolute bottom-12 right-12 flex gap-2">
+<span class="px-2 py-1 bg-surface-container-low border border-outline-variant/30 text-label-caps font-label-caps text-outline">CONFIDENCE: 87%</span>
+<span class="px-2 py-1 bg-surface-container-low border border-outline-variant/30 text-label-caps font-label-caps text-outline">SOURCES: 142</span>
+</div>
+</div>
+</section>
+</main>
+</body></html>
