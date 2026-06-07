@@ -1,15 +1,42 @@
+/* ==========================================================================
+   NEXUS Global Stylesheet
+   Design system source of truth — all tokens, resets, animations, utilities.
+   Tailwind v4 — uses @import "tailwindcss" + @theme for token registration.
+   ========================================================================== */
+
+/* ── SECTION 1: Google Fonts ─────────────────────────────────────────────── */
+
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap');
+
+/* ── SECTION 2: Tailwind v4 entry point ──────────────────────────────────── */
+
 @import "tailwindcss";
 
-:root {
-  /* Core backgrounds */
-  --nx-bg: #0A0A0F;
-  --nx-bg-elevated: #12121A;
-  --nx-bg-panel: rgba(255,255,255,0.04);
-  --nx-border: rgba(255,255,255,0.08);
-  --nx-border-hover: rgba(255,255,255,0.16);
+/* ── SECTION 3: CSS custom properties ───────────────────────────────────── */
 
-  /* Agent colors */
+:root {
+  /* === BACKGROUNDS === */
+  --nx-bg: #0A0A0F;
+  --nx-bg-elevated: #111118;
+  --nx-bg-panel: rgba(255, 255, 255, 0.04);
+  --nx-bg-panel-hover: rgba(255, 255, 255, 0.06);
+
+  /* === BORDERS === */
+  --nx-border: rgba(255, 255, 255, 0.08);
+  --nx-border-hover: rgba(255, 255, 255, 0.18);
+  --nx-border-active: rgba(255, 255, 255, 0.40);
+
+  /* === TYPOGRAPHY === */
+  --nx-font-display: 'Syne', sans-serif;
+  --nx-font-mono: 'DM Mono', monospace;
+
+  /* === TEXT === */
+  --nx-text-primary: rgba(255, 255, 255, 0.92);
+  --nx-text-secondary: rgba(255, 255, 255, 0.52);
+  --nx-text-muted: rgba(255, 255, 255, 0.25);
+  --nx-text-ghost: rgba(255, 255, 255, 0.12);
+
+  /* === AGENT COLORS === */
   --nx-advocate: #E8593C;
   --nx-challenger: #E24B4A;
   --nx-factchecker: #1D9E75;
@@ -17,26 +44,44 @@
   --nx-synthesizer: #7F77DD;
   --nx-orchestrator: #888780;
 
-  /* Typography */
-  --nx-font-display: 'Syne', sans-serif;
-  --nx-font-mono: 'DM Mono', monospace;
+  /* === AGENT GLOWS (for box-shadow use) === */
+  --nx-glow-advocate: 0 0 24px rgba(232, 89, 60, 0.30);
+  --nx-glow-challenger: 0 0 24px rgba(226, 75, 74, 0.30);
+  --nx-glow-factchecker: 0 0 24px rgba(29, 158, 117, 0.30);
+  --nx-glow-codeanalyst: 0 0 24px rgba(55, 138, 221, 0.30);
+  --nx-glow-synthesizer: 0 0 24px rgba(127, 119, 221, 0.30);
 
-  /* Text */
-  --nx-text-primary: rgba(255,255,255,0.92);
-  --nx-text-secondary: rgba(255,255,255,0.52);
-  --nx-text-muted: rgba(255,255,255,0.28);
+  /* === AGENT COLORS WITH ALPHA (for fills) === */
+  --nx-advocate-12: rgba(232, 89, 60, 0.12);
+  --nx-challenger-12: rgba(226, 75, 74, 0.12);
+  --nx-factchecker-12: rgba(29, 158, 117, 0.12);
+  --nx-codeanalyst-12: rgba(55, 138, 221, 0.12);
+  --nx-synthesizer-12: rgba(127, 119, 221, 0.12);
 
-  /* Glow helpers per agent */
-  --nx-glow-advocate: 0 0 20px rgba(232,89,60,0.35);
-  --nx-glow-challenger: 0 0 20px rgba(226,75,74,0.35);
-  --nx-glow-factchecker: 0 0 20px rgba(29,158,117,0.35);
-  --nx-glow-codeanalyst: 0 0 20px rgba(55,138,221,0.35);
-  --nx-glow-synthesizer: 0 0 20px rgba(127,119,221,0.35);
+  /* === LAYOUT === */
+  --nx-sidebar-width: 280px;
+  --nx-rightpanel-width: 320px;
+  --nx-topbar-height: 40px;
+  --nx-statusbar-height: 32px;
+
+  /* === TRANSITIONS === */
+  --nx-transition-fast: 120ms ease;
+  --nx-transition-base: 200ms ease;
+  --nx-transition-slow: 350ms ease;
 }
 
+/* ── SECTION 3b: Tailwind v4 @theme block ────────────────────────────────── */
+/* Registers tokens as Tailwind utility classes (e.g. text-nx-advocate,       */
+/* bg-nx-elevated, font-display, font-mono).                                  */
+
 @theme inline {
-  --font-display: ['Syne', 'sans-serif'];
-  --font-mono: ['DM Mono', 'monospace'];
+  /* Font families */
+  --font-display: 'Syne', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+
+  /* NEXUS color palette */
+  --color-nx-bg: #0A0A0F;
+  --color-nx-elevated: #111118;
   --color-nx-advocate: #E8593C;
   --color-nx-challenger: #E24B4A;
   --color-nx-factchecker: #1D9E75;
@@ -45,24 +90,39 @@
   --color-nx-orchestrator: #888780;
 }
 
-html, body {
-  background: var(--nx-bg);
-  color: var(--nx-text-primary);
-  font-family: var(--nx-font-display);
+/* ── SECTION 4: Base element resets ─────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+html {
   height: 100%;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  height: 100%;
+  background-color: var(--nx-bg);
+  color: var(--nx-text-primary);
+  font-family: var(--nx-font-display);
   overflow: hidden;
+  position: relative;
 }
 
-::selection {
-  background: #7F77DD33;
-  color: white;
+/* Next.js root div must also be full height */
+#__next {
+  height: 100%;
 }
 
-.font-mono {
-  font-family: var(--nx-font-mono);
-}
+/* ── SECTION 5: Grain texture overlay ───────────────────────────────────── */
+/* Fixed pseudo-element creates the subtle film-grain that makes the dark     */
+/* background feel expensive rather than flat. Opacity 0.042, mix overlay.   */
 
 body::before {
   content: '';
@@ -70,7 +130,168 @@ body::before {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  opacity: 0.045;
+  opacity: 0.042;
   mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23grain)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
 }
+
+/* Everything else must sit above the grain */
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── SECTION 6: Text selection ───────────────────────────────────────────── */
+
+::selection {
+  background-color: rgba(127, 119, 221, 0.28);
+  color: var(--nx-text-primary);
+}
+
+/* ── SECTION 7: Scrollbar styling (webkit) ──────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.20);
+}
+
+/* ── SECTION 8: Typography utility classes ──────────────────────────────── */
+
+/* Display font — for headings, labels, mode names, buttons */
+.font-display {
+  font-family: var(--nx-font-display);
+}
+
+/* Mono font — for agent outputs, code, timestamps, thought streams */
+.font-mono {
+  font-family: var(--nx-font-mono);
+}
+
+/* Label style — used for section labels like "QUERY", "OUTPUT" */
+.label-xs {
+  font-family: var(--nx-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--nx-text-muted);
+}
+
+/* Agent name style — used in panel headers */
+.label-agent {
+  font-family: var(--nx-font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Monospace stream text — agent thought output */
+.text-stream {
+  font-family: var(--nx-font-mono);
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--nx-text-secondary);
+}
+
+/* ── SECTION 9: Global animations (keyframes) ───────────────────────────── */
+/* Shared across components — defined here so they are not duplicated.        */
+
+/* Blinking cursor for active agent thought streams */
+@keyframes nx-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Pulse ring for active graph nodes */
+@keyframes nx-pulse-ring {
+  0% { transform: scale(1); opacity: 0.5; }
+  70% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* Dot pulse for status indicators */
+@keyframes nx-dot-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* Subtle fade-in for new elements */
+@keyframes nx-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Shimmer for loading states */
+@keyframes nx-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+/* CSS animation utility classes for the keyframes above */
+.animate-blink {
+  animation: nx-blink 1s ease-in-out infinite;
+}
+
+.animate-dot-pulse {
+  animation: nx-dot-pulse 1.8s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: nx-fade-in 300ms ease forwards;
+}
+
+/* ── SECTION 10: Glassmorphism panel classes ────────────────────────────── */
+
+/* Apply this class to any floating panel */
+.glass-panel {
+  background: var(--nx-bg-panel);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--nx-border);
+}
+
+.glass-panel-elevated {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--nx-border-hover);
+}
+
+/* ── SECTION 11: Agent color utility classes ────────────────────────────── */
+
+/* Text color per agent */
+.text-advocate    { color: var(--nx-advocate); }
+.text-challenger  { color: var(--nx-challenger); }
+.text-factchecker { color: var(--nx-factchecker); }
+.text-codeanalyst { color: var(--nx-codeanalyst); }
+.text-synthesizer { color: var(--nx-synthesizer); }
+.text-orchestrator{ color: var(--nx-orchestrator); }
+
+/* Border-left accent per agent — for panel left borders */
+.border-advocate    { border-left-color: var(--nx-advocate) !important; }
+.border-challenger  { border-left-color: var(--nx-challenger) !important; }
+.border-factchecker { border-left-color: var(--nx-factchecker) !important; }
+.border-codeanalyst { border-left-color: var(--nx-codeanalyst) !important; }
+.border-synthesizer { border-left-color: var(--nx-synthesizer) !important; }
+
+/* Glow box-shadow per agent — for active states */
+.glow-advocate    { box-shadow: var(--nx-glow-advocate); }
+.glow-challenger  { box-shadow: var(--nx-glow-challenger); }
+.glow-factchecker { box-shadow: var(--nx-glow-factchecker); }
+.glow-codeanalyst { box-shadow: var(--nx-glow-codeanalyst); }
+.glow-synthesizer { box-shadow: var(--nx-glow-synthesizer); }
