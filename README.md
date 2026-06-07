@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NEXUS — Autonomous Multi-Agent Intelligence Platform
 
-## Getting Started
+One platform. Four intelligence modes. Powered by a live force-directed argument graph.
 
-First, run the development server:
+## What it does
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXUS is an agentic reasoning system where specialized AI agents collaborate, argue, and synthesize knowledge in real-time. Every thought, claim, and connection is visualized as a living graph on an infinite canvas.
+
+**Four modes:**
+
+- **DEBATE** — Advocate vs Challenger agents argue any topic. Watch claims and rebuttals spawn as graph nodes.
+- **RESEARCH** — Multi-agent synthesis with live web sources. Source credibility shown as node confidence rings.
+- **CODE** — Paste any GitHub repo URL. Agents map, analyse, and propose improvements to the codebase.
+- **PLAN** — Describe any app idea. Agents decompose it into a full technical blueprint and timeline.
+
+## Tech Stack
+
+- Next.js (App Router) + TypeScript
+- Gemini 2.5 Flash API (free tier)
+- D3.js force simulation
+- Server-Sent Events for real-time streaming
+- Tailwind CSS + Framer Motion
+- Google Stitch MCP for UI design system
+
+## Setup (under 2 minutes)
+
+1. `git clone https://github.com/silverfang7x/nexus.git`
+2. `npm install`
+3. Add `GEMINI_API_KEY` to `.env.local` (free at [aistudio.google.com](https://aistudio.google.com))
+4. `npm run dev`
+
+Open [http://localhost:3000](http://localhost:3000).
+
+### Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `GEMINI_API_KEY` | Yes | Google AI Studio API key for Gemini 2.5 Flash |
+
+### Mock mode
+
+Pass `useMock: true` when starting a session to replay pre-recorded events from `mock/` without calling the API. Useful for UI development and demos.
+
+## Project structure
+
+```
+app/
+  api/stream/          SSE endpoint — orchestrates agents, streams AgentEvents
+  (dashboard)/         Main canvas shell
+components/
+  agents/              Agent panels and badges
+  canvas/              D3 graph (NexusGraph, GraphNode, GraphEdge)
+  modes/               Mode-specific layouts (Debate, Research, Code, Plan)
+hooks/
+  useAgentStream.ts    Client SSE consumer
+  useGraph.ts          D3 force simulation
+lib/
+  agents/              Agent runners + orchestrator
+  gemini.ts            Gemini API wrapper
+types/
+  nexus.ts             Shared types (AgentEvent, GraphNode, NexusMode)
+DESIGN.md              UI design system (single source of truth)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Architecture
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the agent message bus, SSE pipeline, and mode system.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Design system
 
-## Learn More
+All UI must conform to [DESIGN.md](./DESIGN.md), extracted from the Stitch reference screens in `components/ui/stitch/`.
 
-To learn more about Next.js, take a look at the following resources:
+## License
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Private — all rights reserved.
