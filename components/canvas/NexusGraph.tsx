@@ -3,8 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { GraphNode, GraphEdge, AgentId, EdgeType } from '@/types/nexus';
-import { getAgentColor, truncateLabel } from './GraphNode';
-import { getEdgeStyle } from './GraphEdge';
+import { getAgentColor } from './GraphNode';
 
 interface SimNode extends GraphNode, d3.SimulationNodeDatum {}
 
@@ -15,6 +14,26 @@ interface SimLink extends d3.SimulationLinkDatum<SimNode> {
   type: EdgeType;
   label?: string;
 }
+
+interface SVGLineElementWithEntering extends SVGLineElement {
+  __entering?: boolean;
+}
+
+const getNodeTypeLetter = (type: string): string => {
+  switch (type.toLowerCase()) {
+    case 'claim': return 'C';
+    case 'rebuttal': return 'R';
+    case 'fact': return 'F';
+    case 'source': return 'S';
+    case 'file': return 'F';
+    case 'issue': return '!';
+    case 'fix': return '✓';
+    case 'feature': return '★';
+    case 'risk': return '⚠';
+    case 'milestone': return '◆';
+    default: return type.charAt(0).toUpperCase();
+  }
+};
 
 export interface NexusGraphProps {
   nodes: GraphNode[];
@@ -224,35 +243,187 @@ export default function NexusGraph({
     // Exit
     edgeLines.exit().remove();
 
-    // Enter
+    // Enter & Draw animation
     const edgeLinesEnter = edgeLines.enter()
       .append('line')
-      .attr('class', 'edge-line')
-      .attr('marker-end', d => `url(#arrow-${d.type})`);
+      .attr('class', 'edge-line');
 
     // Merge & Update properties
     const edgeLinesMerged = edgeLinesEnter.merge(edgeLines);
 
-    edgeLinesMerged.each(function(d) {
-      const style = getEdgeStyle(d.type);
-      d3.select(this)
-        .attr('stroke', style.stroke)
-        .attr('stroke-opacity', style.opacity)
-        .attr('stroke-width', style.width)
-        .attr('marker-end', `url(#arrow-${d.type})`);
+    edgeLinesMerged.each(function(this: SVGLineElement, d) {
+      const el = d3.select(this);
+      
+      let stroke = 'rgba(255, 255, 255, 0.15)';
+      let opacity = 1.0;
+      let strokeWidth = 1.0;
+      let dasharray: string | null = null;
+      let isAnimated = false;
+      let markerId = 'arrow-default';
+
+      switch (d.type) {
+        case 'supports':
+          stroke = '#1D9E75';
+          opacity = 0.55;
+          strokeWidth = 1;
+          markerId = 'arrow-supports';
+          break;
+        case 'rebuts':
+          stroke = '#E24B4A';
+          opacity = 0.75;
+          strokeWidth = 1.5;
+          dasharray = '5 3';
+          isAnimated = true;
+          markerId = 'arrow-rebuts';
+          break;
+        case 'verifies':
+          stroke = '#1D9E75';
+          opacity = 0.9;
+          strokeWidth = 1;
+          markerId = 'arrow-verifies';
+          break;
+        case 'contradicts':
+          stroke = '#E24B4A';
+          opacity = 0.9;
+          strokeWidth = 2;
+          dasharray = '3 2';
+          isAnimated = true;
+          markerId = 'arrow-contradicts';
+          break;
+        case 'depends':
+          stroke = '#378ADD';
+          opacity = 0.5;
+          strokeWidth = 1;
+          markerId = 'arrow-default';
+          break;
+        case 'fixes':
+          stroke = '#1D9E75';
+          opacity = 0.7;
+          strokeWidth = 1.5;
+          markerId = 'arrow-supports';
+          break;
+        case 'links':
+          stroke = 'rgba(255,255,255,0.12)';
+          strokeWidth = 0.5;
+          markerId = 'arrow-default';
+          break;
+      }
+
+      el.attr('stroke', stroke)
+        .attr('stroke-opacity', opacity)
+        .attr('stroke-width', strokeWidth)
+        .attr('marker-end', `url(#${markerId})`);
+
+      if (!(this as SVGLineElementWithEntering).__entering) {
+        if (dasharray) {
+          el.attr('stroke-dasharray', dasharray);
+        } else {
+          el.attr('stroke-dasharray', null);
+        }
+
+        if (isAnimated) {
+          el.style('animation', 'nx-dash 3s linear infinite');
+        } else {
+          el.style('animation', null);
+        }
+      }
     });
 
-    // Draw animation on enter (using stroke-dashoffset)
-    edgeLinesEnter.each(function(d) {
-      const style = getEdgeStyle(d.type);
+    edgeLinesEnter.each(function(this: SVGLineElementWithEntering, d) {
       const el = d3.select(this);
-      el.attr('stroke-dasharray', '200 200')
-        .attr('stroke-dashoffset', 200)
+      this.__entering = true;
+
+      let stroke = 'rgba(255, 255, 255, 0.15)';
+      let opacity = 1.0;
+      let strokeWidth = 1.0;
+      let dasharray: string | null = null;
+      let isAnimated = false;
+      let markerId = 'arrow-default';
+
+      switch (d.type) {
+        case 'supports':
+          stroke = '#1D9E75';
+          opacity = 0.55;
+          strokeWidth = 1;
+          markerId = 'arrow-supports';
+          break;
+        case 'rebuts':
+          stroke = '#E24B4A';
+          opacity = 0.75;
+          strokeWidth = 1.5;
+          dasharray = '5 3';
+          isAnimated = true;
+          markerId = 'arrow-rebuts';
+          break;
+        case 'verifies':
+          stroke = '#1D9E75';
+          opacity = 0.9;
+          strokeWidth = 1;
+          markerId = 'arrow-verifies';
+          break;
+        case 'contradicts':
+          stroke = '#E24B4A';
+          opacity = 0.9;
+          strokeWidth = 2;
+          dasharray = '3 2';
+          isAnimated = true;
+          markerId = 'arrow-contradicts';
+          break;
+        case 'depends':
+          stroke = '#378ADD';
+          opacity = 0.5;
+          strokeWidth = 1;
+          markerId = 'arrow-default';
+          break;
+        case 'fixes':
+          stroke = '#1D9E75';
+          opacity = 0.7;
+          strokeWidth = 1.5;
+          markerId = 'arrow-supports';
+          break;
+        case 'links':
+          stroke = 'rgba(255,255,255,0.12)';
+          strokeWidth = 0.5;
+          markerId = 'arrow-default';
+          break;
+      }
+
+      el.attr('stroke', stroke)
+        .attr('stroke-opacity', opacity)
+        .attr('stroke-width', strokeWidth)
+        .attr('marker-end', `url(#${markerId})`);
+
+      const x1 = (d.source as SimNode).x ?? 0;
+      const y1 = (d.source as SimNode).y ?? 0;
+      const x2 = (d.target as SimNode).x ?? 0;
+      const y2 = (d.target as SimNode).y ?? 0;
+      
+      el.attr('x1', x1)
+        .attr('y1', y1)
+        .attr('x2', x2)
+        .attr('y2', y2);
+
+      const pathLength = this.getTotalLength();
+
+      el.attr('stroke-dasharray', `${pathLength} ${pathLength}`)
+        .attr('stroke-dashoffset', pathLength)
         .transition()
         .duration(500)
+        .ease(d3.easeQuadOut)
         .attr('stroke-dashoffset', 0)
-        .on('end', () => {
-          el.attr('stroke-dasharray', style.dasharray);
+        .on('end', function(this: SVGLineElementWithEntering) {
+          delete this.__entering;
+          if (dasharray) {
+            d3.select(this).attr('stroke-dasharray', dasharray);
+          } else {
+            d3.select(this).attr('stroke-dasharray', null);
+          }
+
+          if (isAnimated) {
+            d3.select(this).style('animation', 'nx-dash 3s linear infinite');
+          } else {
+            d3.select(this).style('animation', null);
+          }
         });
     });
 
@@ -271,6 +442,7 @@ export default function NexusGraph({
     const nodeGroupsEnter = nodeGroups.enter()
       .append('g')
       .attr('class', 'node-group')
+      .attr('transform', d => `translate(${d.x ?? 0}, ${d.y ?? 0})`)
       .style('cursor', onNodeClick ? 'pointer' : 'default')
       .on('click', (event, d) => {
         if (onNodeClick) onNodeClick(d);
@@ -281,42 +453,47 @@ export default function NexusGraph({
     const nodeContentEnter = nodeGroupsEnter.append('g')
       .attr('class', 'node-content')
       .style('opacity', 0)
-      .attr('transform', 'scale(0)');
+      .attr('transform', 'scale(0.3)');
 
-    // a) Outer glow ring
+    // a) Circle 1 — outer ambient glow
     nodeContentEnter.append('circle')
-      .attr('class', 'glow-ring')
-      .attr('r', 36)
-      .attr('fill', 'none')
-      .attr('stroke-width', '0.5')
-      .attr('opacity', '0.3');
+      .attr('class', 'glow-outer')
+      .attr('r', 42)
+      .attr('stroke', 'none');
 
-    // b) Inner filled circle
+    // b) Circle 2 — mid ring (only when node's agentId is in activeAgents)
+    nodeContentEnter.append('circle')
+      .attr('class', 'glow-mid')
+      .attr('r', 34)
+      .attr('fill', 'none')
+      .attr('stroke-width', '1');
+
+    // c) Circle 3 — inner filled circle
     nodeContentEnter.append('circle')
       .attr('class', 'inner-circle')
-      .attr('r', 24)
-      .attr('fill-opacity', 0.12)
+      .attr('r', 22)
       .attr('stroke-width', '1.5');
 
-    // c) Icon or letter
+    // d) Text 1 — type icon letter
     nodeContentEnter.append('text')
       .attr('class', 'node-icon')
+      .attr('y', 0)
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'central')
-      .attr('font-family', 'Syne, sans-serif')
-      .attr('font-weight', '700')
-      .attr('font-size', '14px');
+      .style('font-family', 'var(--nx-font-display)')
+      .attr('font-weight', '600')
+      .attr('font-size', '13px');
 
-    // d) Label below
+    // e) Text 2 — label below
     nodeContentEnter.append('text')
       .attr('class', 'node-label')
-      .attr('y', 40)
+      .attr('y', 36)
       .attr('text-anchor', 'middle')
-      .attr('fill', 'rgba(255, 255, 255, 0.7)')
+      .style('font-family', 'var(--nx-font-mono)')
       .attr('font-size', '10px')
-      .attr('font-family', 'DM Mono, monospace');
+      .style('filter', 'drop-shadow(0 1px 3px rgba(0,0,0,0.8))');
 
-    // e) Confidence ring (fact-checker confidence indication)
+    // f) Confidence ring (fact-checker confidence indication)
     nodeContentEnter.append('circle')
       .attr('class', 'confidence-ring')
       .attr('r', 28)
@@ -333,24 +510,43 @@ export default function NexusGraph({
       const color = getAgentColor(d.agentId);
       const isAgentActive = activeAgents.includes(d.agentId);
 
-      // Outer glow ring
-      el.select('.glow-ring')
-        .attr('stroke', color)
-        .attr('class', isAgentActive ? 'glow-ring pulsing-glow' : 'glow-ring');
+      // Circle 1 - outer ambient glow
+      el.select('.glow-outer')
+        .attr('fill', color)
+        .attr('fill-opacity', 0.06);
 
-      // Inner circle
+      // Circle 2 - mid ring
+      const midRing = el.select('.glow-mid');
+      midRing
+        .attr('stroke', color)
+        .attr('stroke-opacity', 0.4)
+        .style('display', isAgentActive ? 'block' : 'none');
+
+      if (isAgentActive) {
+        midRing.style('animation', 'nx-pulse-ring 2s ease-out infinite');
+        midRing.style('transform-origin', 'center');
+        midRing.style('transform-box', 'fill-box');
+      } else {
+        midRing.style('animation', null);
+      }
+
+      // Circle 3 - inner circle
       el.select('.inner-circle')
+        .attr('fill', color)
+        .attr('fill-opacity', 0.15)
         .attr('stroke', color)
-        .attr('fill', color);
+        .attr('stroke-opacity', 0.9);
 
-      // Icon letter (capitalized first letter of node type)
+      // Text 1 - icon letter
       el.select('.node-icon')
         .attr('fill', color)
-        .text(d.type.charAt(0).toUpperCase());
+        .text(getNodeTypeLetter(d.type));
 
-      // Label below
+      // Text 2 - label below
+      const truncatedLabel = d.label.length > 18 ? d.label.substring(0, 18) + '…' : d.label;
       el.select('.node-label')
-        .text(truncateLabel(d.label));
+        .attr('fill', 'rgba(255, 255, 255, 0.65)')
+        .text(truncatedLabel);
 
       // Confidence ring
       el.select('.confidence-ring')
@@ -363,7 +559,8 @@ export default function NexusGraph({
 
     // Animate content scaling up on enter
     nodeContentEnter.transition()
-      .duration(400)
+      .duration(350)
+      .ease(d3.easeBackOut.overshoot(1.4))
       .style('opacity', 1)
       .attr('transform', 'scale(1)');
 
@@ -418,26 +615,20 @@ export default function NexusGraph({
       `}</style>
       <svg ref={svgRef} className="w-full h-full block">
         <defs>
-          <marker id="arrow-supports" viewBox="0 0 10 10" refX="32" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="var(--nx-factchecker)" opacity="0.6"/>
+          <marker id="arrow-supports" viewBox="0 0 10 10" refX="30" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#1D9E75"/>
           </marker>
-          <marker id="arrow-rebuts" viewBox="0 0 10 10" refX="32" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="var(--nx-challenger)" opacity="0.7"/>
+          <marker id="arrow-rebuts" viewBox="0 0 10 10" refX="30" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#E24B4A"/>
           </marker>
-          <marker id="arrow-verifies" viewBox="0 0 10 10" refX="32" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="var(--nx-factchecker)" opacity="0.9"/>
+          <marker id="arrow-verifies" viewBox="0 0 10 10" refX="30" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#1D9E75"/>
           </marker>
-          <marker id="arrow-contradicts" viewBox="0 0 10 10" refX="32" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="var(--nx-challenger)" opacity="0.9"/>
+          <marker id="arrow-contradicts" viewBox="0 0 10 10" refX="30" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#E24B4A"/>
           </marker>
-          <marker id="arrow-depends" viewBox="0 0 10 10" refX="32" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="var(--nx-codeanalyst)" opacity="0.5"/>
-          </marker>
-          <marker id="arrow-fixes" viewBox="0 0 10 10" refX="32" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="var(--nx-factchecker)" opacity="0.7"/>
-          </marker>
-          <marker id="arrow-links" viewBox="0 0 10 10" refX="32" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="rgba(255,255,255,0.15)"/>
+          <marker id="arrow-default" viewBox="0 0 10 10" refX="30" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="rgba(255, 255, 255, 0.3)"/>
           </marker>
         </defs>
         <g className="inner-group">

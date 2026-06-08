@@ -243,6 +243,11 @@ body > * {
   100% { background-position:  200% center; }
 }
 
+/* Animated dashed line offset for rebuttal/contradict edges */
+@keyframes nx-dash {
+  to { stroke-dashoffset: -20; }
+}
+
 /* CSS animation utility classes for the keyframes above */
 .animate-blink {
   animation: nx-blink 1s ease-in-out infinite;
