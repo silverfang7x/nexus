@@ -517,6 +517,16 @@ export default function VerdictPanel({
 }: VerdictPanelProps) {
   const [copied, setCopied] = useState(false);
 
+  // Parse JSON at the top — MUST be before any early returns to obey Rules of Hooks
+  const parsed = useMemo(() => {
+    if (!verdict) return null;
+    try {
+      return JSON.parse(verdict);
+    } catch {
+      return null;
+    }
+  }, [verdict]);
+
   const handleCopy = () => {
     if (!verdict) return;
     navigator.clipboard.writeText(verdict).then(() => {
@@ -573,23 +583,13 @@ export default function VerdictPanel({
     );
   }
 
-  // ── 3. Parse JSON ─────────────────────────────────────────────────────────
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const parsed = useMemo(() => {
-    try {
-      return JSON.parse(verdict);
-    } catch {
-      return null;
-    }
-  }, [verdict]);
-
+  // ── 3. Has verdict content ────────────────────────────────────────────────
   const modeColor =
     mode === 'debate' ? '#E24B4A' :
     mode === 'research' ? '#1D9E75' :
     mode === 'code' ? '#378ADD' :
     '#BA7517';
 
-  // ── 4. Has verdict content ────────────────────────────────────────────────
   return (
     <div style={{ padding: 16, overflowY: 'auto', flexGrow: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Top metadata row */}
