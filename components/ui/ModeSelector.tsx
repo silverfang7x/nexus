@@ -13,6 +13,8 @@ export interface ModeSelectorProps {
   suggestedMode?: NexusMode | null;
   /** Called when user accepts the suggested mode */
   onAcceptSuggestion?: (mode: NexusMode) => void;
+  query?: string;
+  onQueryChange?: (query: string) => void;
 }
 
 const placeholders: Record<NexusMode, string> = {
@@ -36,8 +38,13 @@ export default function ModeSelector({
   isRunning,
   suggestedMode,
   onAcceptSuggestion,
+  query: controlledQuery,
+  onQueryChange,
 }: ModeSelectorProps) {
-  const [query, setQuery] = useState('');
+  const [localQuery, setLocalQuery] = useState('');
+  const query = controlledQuery !== undefined ? controlledQuery : localQuery;
+  const setQuery = onQueryChange !== undefined ? onQueryChange : setLocalQuery;
+
   const [isFocused, setIsFocused] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
 

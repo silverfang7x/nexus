@@ -14,6 +14,15 @@ export interface ClientProcessedQuery {
   enrichedQuery: string;
 }
 
+export interface RestoreSessionData {
+  query: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  structuredOutput: unknown;
+  cleanQuery?: string;
+  mode: NexusMode;
+}
+
 export function useAgentStream() {
   const [query, setQuery] = useState<string>('');
   const [nodes, setNodes] = useState<GraphNode[]>([]);
@@ -165,6 +174,31 @@ export function useAgentStream() {
     }
   }, []);
 
+  const restoreSession = useCallback((session: RestoreSessionData) => {
+    setQuery(session.query);
+    setNodes(session.nodes);
+    setEdges(session.edges);
+    setVerdict(session.structuredOutput as string);
+    setStatus('complete');
+    setActiveAgents([]);
+    setAgentThoughts({});
+    if (session.cleanQuery) {
+      setProcessedQuery({
+        cleanQuery: session.cleanQuery,
+        detectedMode: session.mode,
+        modeConfidence: 1.0,
+        intent: 'restored',
+        domain: 'restored',
+        entities: [],
+        wasAmbiguous: false,
+        originalQuery: session.query,
+        enrichedQuery: session.query
+      });
+    } else {
+      setProcessedQuery(null);
+    }
+  }, []);
+
   return {
     query,
     nodes,
@@ -176,5 +210,6 @@ export function useAgentStream() {
     processedQuery,
     agentThoughts,
     startSession,
+    restoreSession,
   };
 }

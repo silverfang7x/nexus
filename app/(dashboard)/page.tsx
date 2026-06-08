@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import NexusGraph from '@/components/canvas/NexusGraph';
 import AgentPanel from '@/components/agents/AgentPanel';
 import ModeSelector from '@/components/ui/ModeSelector';
 import VerdictPanel from '@/components/output/VerdictPanel';
+import SessionBar from '@/components/ui/SessionBar';
+import { saveSession, getSessions, NexusSession } from '@/lib/sessionStorage';
 import { useAgentStream } from '@/hooks/useAgentStream';
 import { useGraph } from '@/hooks/useGraph';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -174,7 +176,7 @@ function FAB({
 // ─── main dashboard ──────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { query, nodes, edges, events, status, verdict, activeAgents, processedQuery, agentThoughts, startSession } =
+  const { query, nodes, edges, events, status, verdict, activeAgents, processedQuery, agentThoughts, startSession, restoreSession } =
     useAgentStream();
 
   useGraph(nodes, edges);
@@ -186,6 +188,55 @@ export default function Dashboard() {
   const [agentsOpen, setAgentsOpen] = useState(false);
   const [outputOpen, setOutputOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+
+  // --- Session History State & Refs ---
+  const [sessions, setSessions] = useState<NexusSession[]>(() => {
+    if (typeof window !== 'undefined') {
+      return getSessions();
+    }
+    return [];
+  });
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [inputQuery, setInputQuery] = useState('');
+  const [graphScale, setGraphScale] = useState(1);
+
+  const startTimestampRef = useRef<number>(0);
+  const runInProgressRef = useRef<boolean>(false);
+
+  // Save session when run completes
+  useEffect(() => {
+    if (status === 'complete' && runInProgressRef.current) {
+      runInProgressRef.current = false;
+      const durationMs = Date.now() - startTimestampRef.current;
+      const newSession: NexusSession = {
+        id: '', // to be assigned by saveSession
+        mode: activeMode,
+        query: query,
+        cleanQuery: processedQuery?.cleanQuery || query,
+        nodes,
+        edges,
+        structuredOutput: verdict,
+        timestamp: Date.now(),
+        durationMs
+      };
+      saveSession(newSession);
+      const updated = getSessions();
+      setSessions(updated);
+      setActiveSessionId('001'); // newly saved is always the most recent (001)
+    }
+  }, [status, nodes, edges, verdict, activeMode, query, processedQuery]);
+
+  // Handle restoring a session
+  const handleRestoreSession = useCallback((session: NexusSession) => {
+    restoreSession(session);
+    setActiveSessionId(session.id);
+    setInputQuery(session.query);
+    setActiveMode(session.mode);
+
+    // Apply scale flash effect
+    setGraphScale(0.97);
+    setTimeout(() => setGraphScale(1), 150);
+  }, [restoreSession]);
 
   const closeAll = useCallback(() => {
     setAgentsOpen(false);
@@ -237,9 +288,16 @@ export default function Dashboard() {
   }, []);
 
   const handleQuerySubmit = useCallback(
-    (query: string) => {
-      const isMock = query.includes('--mock');
-      startSession(activeMode, query.replace('--mock', '').trim(), isMock);
+    (submittedQuery: string) => {
+      const isMock = submittedQuery.includes('--mock');
+      const clean = submittedQuery.replace('--mock', '').trim();
+      
+      startTimestampRef.current = Date.now();
+      runInProgressRef.current = true;
+      setActiveSessionId(null);
+      setInputQuery(clean);
+      
+      startSession(activeMode, clean, isMock);
     },
     [activeMode, startSession]
   );
@@ -348,6 +406,8 @@ export default function Dashboard() {
             : null
         }
         onAcceptSuggestion={(m) => setActiveMode(m)}
+        query={inputQuery}
+        onQueryChange={setInputQuery}
       />
       <div
         style={{
@@ -410,6 +470,13 @@ export default function Dashboard() {
 
   return (
     <>
+      <SessionBar
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        onRestoreSession={handleRestoreSession}
+        currentMode={activeMode}
+        isRunning={status === 'running'}
+      />
       {/* ── global style tag ───────────────────────────────────────────── */}
       <style>{`
         /* thin custom scrollbar shared across panels */
@@ -440,7 +507,7 @@ export default function Dashboard() {
             ? `"topbar" "canvas" "statusbar"`
             : `"topbar topbar topbar" "sidebar canvas rightpanel" "statusbar statusbar statusbar"`,
           width: '100vw',
-          height: '100vh',
+          height: 'calc(100vh - 36px)',
           overflow: 'hidden',
           backgroundColor: 'var(--nx-bg)',
         }}
@@ -495,7 +562,7 @@ export default function Dashboard() {
                 color: 'var(--nx-text-muted)',
               }}
             >
-              Session 001
+              {activeSessionId ? `Session ${activeSessionId}` : 'Live Session'}
             </span>
           </div>
         </div>
@@ -518,7 +585,9 @@ export default function Dashboard() {
         )}
 
         {/* ── CENTER CANVAS ───────────────────────────────────────────── */}
-        <div
+        <motion.div
+          animate={{ scale: graphScale }}
+          transition={{ duration: 0.15, ease: 'easeInOut' }}
           style={{
             gridArea: 'canvas',
             backgroundColor: 'var(--nx-bg)',
@@ -593,7 +662,7 @@ export default function Dashboard() {
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </motion.div>
 
         {/* ── RIGHT PANEL (desktop only) ──────────────────────────────── */}
         {!isMobile && (
@@ -619,6 +688,8 @@ export default function Dashboard() {
                     : null
                 }
                 onAcceptSuggestion={(m) => setActiveMode(m)}
+                query={inputQuery}
+                onQueryChange={setInputQuery}
               />
             </div>
             <div
