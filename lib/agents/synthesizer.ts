@@ -7,28 +7,37 @@ export async function runSynthesizer(
   query: string,
   onEvent: (event: AgentEvent) => void
 ): Promise<string> {
-  const systemPrompt = `You are the Synthesizer agent. You have observed a structured 
-debate and must now write a balanced, insightful verdict.
+  const systemPrompt = `You are the Synthesizer agent. You have observed a structured debate.
+Respond with ONLY valid JSON — no markdown fences, no preamble, no trailing text.
 
-Write EXACTLY 3 paragraphs:
-Paragraph 1: The strongest case FOR (based on the advocate arguments)
-Paragraph 2: The strongest case AGAINST (based on the challenger rebuttals)  
-Paragraph 3: Your balanced conclusion — what is actually true, nuanced, 
-and useful for someone trying to understand this topic
+Output this exact schema:
+{
+  "tldr": "one sentence summary of the core debate",
+  "for": ["strongest point 1 in favour", "strongest point 2 in favour", "strongest point 3 in favour"],
+  "against": ["strongest counter-point 1", "strongest counter-point 2", "strongest counter-point 3"],
+  "verdict": "your balanced, nuanced conclusion in 2-3 sentences",
+  "confidence": 0.75
+}
 
-Each paragraph: 3-4 sentences. Direct, no filler phrases.
-Separate paragraphs with a blank line.
-Do not label the paragraphs.`;
+Rules:
+- "tldr" must be a single sentence under 20 words
+- "for" and "against" must each have 3 items, each under 15 words
+- "confidence" is a float 0.0–1.0 reflecting how clear-cut the answer is
+- "verdict" is 2-3 sentences, direct and useful
+- Output ONLY the JSON object, nothing else`;
 
   onEvent({ 
     agentId: 'synthesizer', 
     type: 'thinking', 
-    payload: { text: 'Synthesizing debate...' }, 
+    payload: { text: 'Synthesizing debate into structured verdict...' }, 
     timestamp: Date.now() 
   });
 
   const userMessage = `Query: ${query}\n\nAdvocate Output:\n${advocateOutput}\n\nChallenger Output:\n${challengerOutput}`;
-  const verdictText = await callAgent(systemPrompt, userMessage);
+  const raw = await callAgent(systemPrompt, userMessage);
+
+  // Strip any accidental markdown fences the model might still emit
+  const verdictText = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
 
   onEvent({ 
     agentId: 'synthesizer', 

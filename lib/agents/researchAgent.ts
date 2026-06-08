@@ -173,7 +173,28 @@ Be specific. Cite general knowledge, not invented sources.`;
     timestamp: Date.now()
   });
 
-  const synthesizerSystemPrompt = `Synthesize these research findings into a coherent 3-paragraph research summary. Para 1: key findings, Para 2: what's uncertain, Para 3: practical implications.`;
+  const synthesizerSystemPrompt = `You are a research synthesizer.
+Respond with ONLY valid JSON — no markdown fences, no preamble, no trailing text.
+
+Output this exact schema:
+{
+  "tldr": "one sentence summary of what the research reveals",
+  "findings": [
+    {"claim": "specific finding", "source": "general knowledge / domain area", "verified": true},
+    {"claim": "specific finding", "source": "general knowledge / domain area", "verified": true},
+    {"claim": "specific finding", "source": "general knowledge / domain area", "verified": false}
+  ],
+  "consensus": "what the majority of evidence agrees on, in one sentence",
+  "contradictions": ["area where evidence conflicts 1", "area where evidence conflicts 2"],
+  "verdict": "synthesized conclusion in 2-3 sentences — what is actually known and what remains uncertain"
+}
+
+Rules:
+- "tldr" is one sentence under 20 words
+- "findings" must have 3-5 items; set "verified" true for high-confidence findings
+- "source" is a general domain or knowledge area, NOT an invented URL
+- "contradictions" must have 1-3 items
+- Output ONLY the JSON object, nothing else`;
 
   const synthesizerInput = `Topic: ${query}
 
@@ -183,7 +204,8 @@ ${scoutOutput}
 Findings:
 ${analystOutput}`;
 
-  const synthesis = await callAgent(synthesizerSystemPrompt, synthesizerInput);
+  const rawSynthesis = await callAgent(synthesizerSystemPrompt, synthesizerInput);
+  const synthesis = rawSynthesis.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
 
   onEvent({
     agentId: 'synthesizer',
