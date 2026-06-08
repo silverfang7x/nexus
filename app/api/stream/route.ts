@@ -46,11 +46,11 @@ export async function POST(request: Request) {
           }
         } else {
           if (mode === "debate") {
-            await runDebateMode(query, send);
+            const verdict = await runDebateMode(query, send);
             send({
               agentId: "orchestrator",
               type: "done",
-              payload: {},
+              payload: { text: verdict },
               timestamp: Date.now()
             });
           } else {

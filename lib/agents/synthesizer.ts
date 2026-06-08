@@ -1,28 +1,48 @@
 import { AgentEvent } from "@/types/nexus";
 import { callAgent } from "@/lib/gemini";
 
-export async function runSynthesizer(fullContext: string, onEvent?: (e: AgentEvent) => void): Promise<string> {
-  const systemPrompt = "You are the Synthesizer. Read the full debate and write a balanced 3-paragraph verdict: (1) strongest arguments FOR, (2) strongest arguments AGAINST, (3) your balanced conclusion. Be direct.";
+export async function runSynthesizer(
+  advocateOutput: string,
+  challengerOutput: string,
+  query: string,
+  onEvent: (event: AgentEvent) => void
+): Promise<string> {
+  const systemPrompt = `You are the Synthesizer agent. You have observed a structured 
+debate and must now write a balanced, insightful verdict.
 
-  if (onEvent) {
-    onEvent({
-      agentId: "synthesizer",
-      type: "thinking",
-      payload: { text: "Synthesizer is evaluating the debate..." },
-      timestamp: Date.now()
-    });
-  }
+Write EXACTLY 3 paragraphs:
+Paragraph 1: The strongest case FOR (based on the advocate arguments)
+Paragraph 2: The strongest case AGAINST (based on the challenger rebuttals)  
+Paragraph 3: Your balanced conclusion — what is actually true, nuanced, 
+and useful for someone trying to understand this topic
 
-  const response = await callAgent(systemPrompt, fullContext);
+Each paragraph: 3-4 sentences. Direct, no filler phrases.
+Separate paragraphs with a blank line.
+Do not label the paragraphs.`;
 
-  if (onEvent) {
-    onEvent({
-      agentId: "synthesizer",
-      type: "message",
-      payload: { text: response },
-      timestamp: Date.now()
-    });
-  }
+  onEvent({ 
+    agentId: 'synthesizer', 
+    type: 'thinking', 
+    payload: { text: 'Synthesizing debate...' }, 
+    timestamp: Date.now() 
+  });
 
-  return response;
+  const userMessage = `Query: ${query}\n\nAdvocate Output:\n${advocateOutput}\n\nChallenger Output:\n${challengerOutput}`;
+  const verdictText = await callAgent(systemPrompt, userMessage);
+
+  onEvent({ 
+    agentId: 'synthesizer', 
+    type: 'message',
+    payload: { text: verdictText }, 
+    timestamp: Date.now() 
+  });
+
+  onEvent({
+    agentId: 'synthesizer',
+    type: 'done',
+    payload: { text: 'Synthesis complete.' },
+    timestamp: Date.now()
+  });
+
+  return verdictText;
 }

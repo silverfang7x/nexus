@@ -17,50 +17,42 @@ export function detectMode(query: string): NexusMode {
   return "debate";
 }
 
-export async function runDebateMode(query: string, onEvent: (event: AgentEvent) => void): Promise<string> {
-  // Round 1
+export async function runDebateMode(
+  query: string,
+  onEvent: (event: AgentEvent) => void
+): Promise<string> {
+  // Round 1: Advocate
   onEvent({
-    agentId: "orchestrator",
-    type: "thinking",
-    payload: { text: "Starting Round 1: Calling Advocate..." },
+    agentId: 'advocate',
+    type: 'thinking',
+    payload: { text: 'Building strongest case...' },
     timestamp: Date.now()
   });
-  const advocateClaims = await runAdvocate(query, undefined, onEvent);
 
-  // Round 2
-  onEvent({
-    agentId: "orchestrator",
-    type: "thinking",
-    payload: { text: "Starting Round 2: Calling Challenger..." },
-    timestamp: Date.now()
-  });
-  const challengerRebuttals = await runChallenger(advocateClaims, onEvent);
+  const advocateNodeIds: string[] = [];
+  const trackingOnEvent = (event: AgentEvent) => {
+    if (event.type === 'node_created' && event.payload.node) {
+      advocateNodeIds.push(event.payload.node.id);
+    }
+    onEvent(event);
+  };
 
-  // Round 3
-  onEvent({
-    agentId: "orchestrator",
-    type: "thinking",
-    payload: { text: "Starting Round 3: Advocate refining claims..." },
-    timestamp: Date.now()
-  });
-  const refinedClaims = await runAdvocate(query, challengerRebuttals, onEvent);
+  const advocateOutput = await runAdvocate(query, trackingOnEvent);
 
-  // Round 4
+  // Round 2: Challenger (small delay for UX breathing room)
+  await new Promise(r => setTimeout(r, 500));
   onEvent({
-    agentId: "orchestrator",
-    type: "thinking",
-    payload: { text: "Starting Round 4: Synthesizer forming verdict..." },
+    agentId: 'challenger',
+    type: 'thinking',
+    payload: { text: 'Finding counter-arguments...' },
     timestamp: Date.now()
   });
-  const fullContext = "Query: " + query + "\n\nAdvocate Initial Claims:\n" + advocateClaims + "\n\nChallenger Rebuttals:\n" + challengerRebuttals + "\n\nAdvocate Refined Claims:\n" + refinedClaims;
-  const verdict = await runSynthesizer(fullContext, onEvent);
 
-  onEvent({
-    agentId: "orchestrator",
-    type: "done",
-    payload: { text: "Debate concluded." },
-    timestamp: Date.now()
-  });
+  const challengerOutput = await runChallenger(advocateOutput, onEvent, advocateNodeIds);
+
+  // Round 3: Synthesizer
+  await new Promise(r => setTimeout(r, 500));
+  const verdict = await runSynthesizer(advocateOutput, challengerOutput, query, onEvent);
 
   return verdict;
 }

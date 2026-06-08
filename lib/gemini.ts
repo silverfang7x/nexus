@@ -21,8 +21,12 @@ export async function callAgent(
   conversationHistory?: { role: string; content: string }[]
 ): Promise<string> {
   const model = genAI.getGenerativeModel({
-    model: DEFAULT_MODEL,
+    model: 'gemini-2.5-flash-latest',
     systemInstruction: systemPrompt,
+    generationConfig: {
+      temperature: 0.85,
+      maxOutputTokens: 600,
+    }
   });
 
   const history = conversationHistory?.map((msg) => ({
