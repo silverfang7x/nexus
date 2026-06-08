@@ -1,5 +1,5 @@
 import { AgentEvent, NexusMode } from "@/types/nexus";
-import { runDebateMode } from "@/lib/agents/orchestrator";
+import { runDebateMode, runPlanMode } from "@/lib/agents/orchestrator";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -47,6 +47,14 @@ export async function POST(request: Request) {
         } else {
           if (mode === "debate") {
             const verdict = await runDebateMode(query, send);
+            send({
+              agentId: "orchestrator",
+              type: "done",
+              payload: { text: verdict },
+              timestamp: Date.now()
+            });
+          } else if (mode === "plan") {
+            const verdict = await runPlanMode(query, send);
             send({
               agentId: "orchestrator",
               type: "done",
