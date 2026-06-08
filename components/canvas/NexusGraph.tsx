@@ -39,7 +39,7 @@ export interface NexusGraphProps {
   nodes: GraphNode[];
   edges: GraphEdge[];
   activeAgents: AgentId[];
-  onNodeClick?: (node: GraphNode) => void;
+  onNodeClick?: (node: GraphNode | null) => void;
 }
 
 export default function NexusGraph({
@@ -445,7 +445,8 @@ export default function NexusGraph({
       .attr('transform', d => `translate(${d.x ?? 0}, ${d.y ?? 0})`)
       .style('cursor', onNodeClick ? 'pointer' : 'default')
       .on('click', (event, d) => {
-        if (onNodeClick) onNodeClick(d);
+        event.stopPropagation();
+        onNodeClick?.(d);
       })
       .call(getDragBehavior(sim) as unknown as (selection: d3.Selection<SVGGElement, SimNode, SVGGElement, unknown>) => void);
 
@@ -613,7 +614,15 @@ export default function NexusGraph({
           transform-box: fill-box;
         }
       `}</style>
-      <svg ref={svgRef} className="w-full h-full block">
+      <svg 
+        ref={svgRef} 
+        className="w-full h-full block"
+        onClick={(event) => {
+          if (event.target === svgRef.current) {
+            onNodeClick?.(null);
+          }
+        }}
+      >
         <defs>
           <marker id="arrow-supports" viewBox="0 0 10 10" refX="30" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
             <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#1D9E75"/>

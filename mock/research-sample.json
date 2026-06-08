@@ -1,1 +1,270 @@
-{}
+[
+  {
+    "agentId": "orchestrator",
+    "type": "thinking",
+    "payload": {
+      "text": "Initializing Multi-Agent research workflow..."
+    },
+    "timestamp": 1780905900000
+  },
+  {
+    "agentId": "factchecker",
+    "type": "thinking",
+    "payload": {
+      "text": "Scouting top 5 key research sub-questions..."
+    },
+    "timestamp": 1780905900100
+  },
+  {
+    "agentId": "factchecker",
+    "type": "node_created",
+    "payload": {
+      "node": {
+        "id": "res-source-1",
+        "type": "source",
+        "label": "What is clean energy",
+        "content": "What is clean energy and how is it defined?",
+        "agentId": "factchecker",
+        "timestamp": 1780905900200
+      }
+    },
+    "timestamp": 1780905900200
+  },
+  {
+    "agentId": "factchecker",
+    "type": "node_created",
+    "payload": {
+      "node": {
+        "id": "res-source-2",
+        "type": "source",
+        "label": "Key technologies",
+        "content": "Which technologies are key to the green transition?",
+        "agentId": "factchecker",
+        "timestamp": 1780905900500
+      }
+    },
+    "timestamp": 1780905900500
+  },
+  {
+    "agentId": "factchecker",
+    "type": "node_created",
+    "payload": {
+      "node": {
+        "id": "res-source-3",
+        "type": "source",
+        "label": "Barriers to entry",
+        "content": "What are the core technical and economic barriers?",
+        "agentId": "factchecker",
+        "timestamp": 1780905900800
+      }
+    },
+    "timestamp": 1780905900800
+  },
+  {
+    "agentId": "factchecker",
+    "type": "node_created",
+    "payload": {
+      "node": {
+        "id": "res-source-4",
+        "type": "source",
+        "label": "Cost trend",
+        "content": "What has been the cost trend of clean energy sources?",
+        "agentId": "factchecker",
+        "timestamp": 1780905901100
+      }
+    },
+    "timestamp": 1780905901100
+  },
+  {
+    "agentId": "factchecker",
+    "type": "node_created",
+    "payload": {
+      "node": {
+        "id": "res-source-5",
+        "type": "source",
+        "label": "Policy drivers",
+        "content": "What are the main government policies driving this change?",
+        "agentId": "factchecker",
+        "timestamp": 1780905901400
+      }
+    },
+    "timestamp": 1780905901400
+  },
+  {
+    "agentId": "advocate",
+    "type": "thinking",
+    "payload": {
+      "text": "Analyzing sub-questions and forming findings..."
+    },
+    "timestamp": 1780905901800
+  },
+  {
+    "agentId": "advocate",
+    "type": "node_created",
+    "payload": {
+      "node": {
+        "id": "res-fact-1",
+        "type": "fact",
+        "label": "Zero-emission definition",
+        "content": "Clean energy refers to zero-emission power sources like wind and solar.",
+        "agentId": "advocate",
+        "confidence": 0.9,
+        "timestamp": 1780905901900
+      }
+    },
+    "timestamp": 1780905901900
+  },
+  {
+    "agentId": "advocate",
+    "type": "edge_created",
+    "payload": {
+      "edge": {
+        "id": "res-edge-1",
+        "source": "res-fact-1",
+        "target": "res-source-1",
+        "type": "verifies"
+      }
+    },
+    "timestamp": 1780905902000
+  },
+  {
+    "agentId": "advocate",
+    "type": "node_created",
+    "payload": {
+      "node": {
+        "id": "res-fact-2",
+        "type": "fact",
+        "label": "Critical tech components",
+        "content": "Photovoltaic cells, lithium batteries, and smart grids are critical.",
+        "agentId": "advocate",
+        "confidence": 0.9,
+        "timestamp": 1780905902200
+      }
+    },
+    "timestamp": 1780905902200
+  },
+  {
+    "agentId": "advocate",
+    "type": "edge_created",
+    "payload": {
+      "edge": {
+        "id": "res-edge-2",
+        "source": "res-fact-2",
+        "target": "res-source-2",
+        "type": "verifies"
+      }
+    },
+    "timestamp": 1780905902300
+  },
+  {
+    "agentId": "advocate",
+    "type": "node_created",
+    "payload": {
+      "node": {
+        "id": "res-fact-3",
+        "type": "fact",
+        "label": "Hurdles identified",
+        "content": "High capital costs and grid congestion present major hurdles.",
+        "agentId": "advocate",
+        "confidence": 0.65,
+        "timestamp": 1780905902500
+      }
+    },
+    "timestamp": 1780905902500
+  },
+  {
+    "agentId": "advocate",
+    "type": "edge_created",
+    "payload": {
+      "edge": {
+        "id": "res-edge-3",
+        "source": "res-fact-3",
+        "target": "res-source-3",
+        "type": "verifies"
+      }
+    },
+    "timestamp": 1780905902600
+  },
+  {
+    "agentId": "advocate",
+    "type": "node_created",
+    "payload": {
+      "node": {
+        "id": "res-fact-4",
+        "type": "fact",
+        "label": "80% drop over decade",
+        "content": "Solar and wind costs have dropped over 80% in the last decade.",
+        "agentId": "advocate",
+        "confidence": 0.9,
+        "timestamp": 1780905902800
+      }
+    },
+    "timestamp": 1780905902800
+  },
+  {
+    "agentId": "advocate",
+    "type": "edge_created",
+    "payload": {
+      "edge": {
+        "id": "res-edge-4",
+        "source": "res-fact-4",
+        "target": "res-source-4",
+        "type": "verifies"
+      }
+    },
+    "timestamp": 1780905902900
+  },
+  {
+    "agentId": "advocate",
+    "type": "node_created",
+    "payload": {
+      "node": {
+        "id": "res-fact-5",
+        "type": "fact",
+        "label": "Policy drivers active",
+        "content": "Subsidies and emissions mandates drive adoption.",
+        "agentId": "advocate",
+        "confidence": 0.4,
+        "timestamp": 1780905903100
+      }
+    },
+    "timestamp": 1780905903100
+  },
+  {
+    "agentId": "advocate",
+    "type": "edge_created",
+    "payload": {
+      "edge": {
+        "id": "res-edge-5",
+        "source": "res-fact-5",
+        "target": "res-source-5",
+        "type": "verifies"
+      }
+    },
+    "timestamp": 1780905903200
+  },
+  {
+    "agentId": "synthesizer",
+    "type": "thinking",
+    "payload": {
+      "text": "Synthesizing comprehensive research summary..."
+    },
+    "timestamp": 1780905903600
+  },
+  {
+    "agentId": "synthesizer",
+    "type": "message",
+    "payload": {
+      "text": "Clean energy is formally defined as electricity generated from zero-emission renewable sources such as wind, solar, geothermal, and hydropower. The technology landscape is advancing rapidly, led by high-efficiency solar cells, advanced utility-scale batteries, and modernized smart grids capable of bidirectional power routing.\n\nHowever, significant economic and integration barriers remain. Grid capacity bottlenecks and transmission congestions currently restrict the connection of new renewable sites, and initial project capital expenses remain substantial despite cost declines. The pace of grid interconnection queue reviews represents a key regulatory bottleneck.\n\nIn practical terms, the clean energy shift has led to massive cost savings, with wind and solar prices dropping over 80% in ten years to become cheaper than fossil fuels. Government incentives, tax credits, and strict decarbonization mandates continue to accelerate enterprise adoption globally."
+    },
+    "timestamp": 1780905904100
+  },
+  {
+    "agentId": "synthesizer",
+    "type": "done",
+    "payload": {
+      "text": "Research synthesis complete."
+    },
+    "timestamp": 1780905904600
+  }
+]

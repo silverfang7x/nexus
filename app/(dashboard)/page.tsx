@@ -9,8 +9,9 @@ import VerdictPanel from '@/components/output/VerdictPanel';
 import { useAgentStream } from '@/hooks/useAgentStream';
 import { useGraph } from '@/hooks/useGraph';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { AgentId, AgentStatus, NexusMode } from '@/types/nexus';
+import { AgentId, AgentStatus, NexusMode, GraphNode } from '@/types/nexus';
 import { getAgentColor } from '@/components/canvas/GraphNode';
+import NodeDetailPanel from '@/components/canvas/NodeDetailPanel';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -184,6 +185,33 @@ export default function Dashboard() {
   const [timeString, setTimeString] = useState('');
   const [agentsOpen, setAgentsOpen] = useState(false);
   const [outputOpen, setOutputOpen] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+
+  // Compute connected nodes for selectedNode
+  const connectedNodes = React.useMemo(() => {
+    if (!selectedNode) return [];
+    const connectedEdges = edges.filter((edge) => {
+      const srcId = typeof edge.source === 'object' && edge.source !== null && 'id' in edge.source
+        ? (edge.source as { id: string }).id
+        : edge.source;
+      const tgtId = typeof edge.target === 'object' && edge.target !== null && 'id' in edge.target
+        ? (edge.target as { id: string }).id
+        : edge.target;
+      return srcId === selectedNode.id || tgtId === selectedNode.id;
+    });
+    const nodeIds = new Set(
+      connectedEdges.map((edge) => {
+        const srcId = typeof edge.source === 'object' && edge.source !== null && 'id' in edge.source
+          ? (edge.source as { id: string }).id
+          : edge.source;
+        const tgtId = typeof edge.target === 'object' && edge.target !== null && 'id' in edge.target
+          ? (edge.target as { id: string }).id
+          : edge.target;
+        return srcId === selectedNode.id ? tgtId : srcId;
+      })
+    );
+    return nodes.filter((n) => nodeIds.has(n.id));
+  }, [selectedNode, edges, nodes]);
 
   const closeAll = useCallback(() => {
     setAgentsOpen(false);
@@ -509,7 +537,7 @@ export default function Dashboard() {
             nodes={nodes}
             edges={edges}
             activeAgents={activeAgents}
-            onNodeClick={(node) => console.log('node clicked', node)}
+            onNodeClick={setSelectedNode}
           />
 
           {/* Empty-state overlay */}
@@ -754,6 +782,17 @@ export default function Dashboard() {
           </div>
         </>
       )}
+
+      {/* Floating Node Detail Panel */}
+      <AnimatePresence>
+        {selectedNode && (
+          <NodeDetailPanel
+            node={selectedNode}
+            connectedNodes={connectedNodes}
+            onClose={() => setSelectedNode(null)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

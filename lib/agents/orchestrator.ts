@@ -7,6 +7,7 @@ import { runStackAgent } from "./stackAgent";
 import { runRiskAgent } from "./riskAgent";
 import { runTimelineAgent } from "./timelineAgent";
 import { runBlueprintSynthesizer } from "./blueprintSynthesizer";
+import { runResearchMode } from "./researchAgent";
 
 export function detectMode(query: string): NexusMode {
   const lowerQuery = query.toLowerCase();
@@ -118,3 +119,5 @@ export async function runPlanMode(
 
   return blueprint;
 }
+
+export { runResearchMode };
