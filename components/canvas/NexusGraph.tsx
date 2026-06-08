@@ -32,19 +32,71 @@ export default function NexusGraph({
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
   const simNodesRef = useRef<SimNode[]>([]);
+  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const sizeRef = useRef({ width: 800, height: 600 });
+  const hasFittedRef = useRef(false);
+
+  // fitGraph function to transition viewport to fit all nodes
+  const fitGraph = () => {
+    const simNodes = simNodesRef.current;
+    if (simNodes.length === 0 || !zoomRef.current || !svgRef.current) return;
+    const { width, height } = sizeRef.current;
+    const padding = 60;
+    const xs = simNodes.map(n => n.x || 0);
+    const ys = simNodes.map(n => n.y || 0);
+    const minX = Math.min(...xs) - padding;
+    const maxX = Math.max(...xs) + padding;
+    const minY = Math.min(...ys) - padding;
+    const maxY = Math.max(...ys) + padding;
+    const graphW = maxX - minX;
+    const graphH = maxY - minY;
+    const scale = Math.min(width / graphW, height / graphH, 1.5);
+    const tx = width / 2 - scale * (minX + maxX) / 2;
+    const ty = height / 2 - scale * (minY + maxY) / 2;
+    d3.select(svgRef.current)
+      .transition().duration(600)
+      .call(zoomRef.current.transform, 
+        d3.zoomIdentity.translate(tx, ty).scale(scale));
+  };
 
   // 1. SIMULATION SETUP (run once on mount)
   useEffect(() => {
-    // d3.forceSimulation with alphaDecay 0.02 (slow, floaty feel)
+    let width = 800;
+    let height = 600;
+    const svgElement = svgRef.current;
+    if (svgElement) {
+      const rect = svgElement.getBoundingClientRect();
+      if (rect.width && rect.height) {
+        width = rect.width;
+        height = rect.height;
+        sizeRef.current = { width, height };
+      }
+    }
+
     const simulation = d3.forceSimulation<SimNode>()
-      .alphaDecay(0.02)
-      .force('charge', d3.forceManyBody().strength(-280))
-      .force('link', d3.forceLink<SimNode, SimLink>().id(d => d.id).distance(130).strength(0.4))
-      .force('collide', d3.forceCollide().radius(45));
+      .alphaDecay(0.025)
+      .velocityDecay(0.4)
+      .force('link', d3.forceLink<SimNode, SimLink>()
+        .id((d: SimNode) => d.id)
+        .distance(110)
+        .strength(0.6)
+      )
+      .force('charge', d3.forceManyBody()
+        .strength(-220)
+        .distanceMax(300)
+      )
+      .force('center', d3.forceCenter(width / 2, height / 2)
+        .strength(0.08)
+      )
+      .force('collision', d3.forceCollide<SimNode>()
+        .radius(52)
+        .strength(0.8)
+      )
+      .force('x', d3.forceX<SimNode>(width / 2).strength(0.04))
+      .force('y', d3.forceY<SimNode>(height / 2).strength(0.04));
 
     simulationRef.current = simulation;
 
-    const svgElement = svgRef.current;
     if (svgElement) {
       // Set up zoom + pan on the SVG element
       const svg = d3.select<SVGSVGElement, unknown>(svgElement);
@@ -56,14 +108,18 @@ export default function NexusGraph({
           innerGroup.attr('transform', event.transform);
         });
 
+      zoomRef.current = zoom;
       svg.call(zoom);
 
       // ResizeObserver to update simulation center on parent container resize
       const parent = svgElement.parentElement || svgElement;
       const resizeObserver = new ResizeObserver((entries) => {
         if (!entries || entries.length === 0) return;
-        const { width, height } = entries[0].contentRect;
-        simulation.force('center', d3.forceCenter(width / 2, height / 2));
+        const { width: newWidth, height: newHeight } = entries[0].contentRect;
+        sizeRef.current = { width: newWidth, height: newHeight };
+        simulation.force('center', d3.forceCenter(newWidth / 2, newHeight / 2));
+        simulation.force('x', d3.forceX<SimNode>(newWidth / 2).strength(0.04));
+        simulation.force('y', d3.forceY<SimNode>(newHeight / 2).strength(0.04));
         simulation.alpha(0.3).restart();
       });
 
@@ -104,16 +160,8 @@ export default function NexusGraph({
     const sim = simulationRef.current;
     if (!sim) return;
 
-    // Get parent bounds for default center positioning
-    let centerX = 300;
-    let centerY = 300;
-    if (svgRef.current) {
-      const rect = svgRef.current.getBoundingClientRect();
-      if (rect.width && rect.height) {
-        centerX = rect.width / 2;
-        centerY = rect.height / 2;
-      }
-    }
+    // Get width and height from sizeRef
+    const { width, height } = sizeRef.current;
 
     // Map the new nodes list to simulation node objects to preserve coords
     const existingNodesMap = new Map<string, SimNode>(
@@ -124,8 +172,8 @@ export default function NexusGraph({
       const existing = existingNodesMap.get(node.id);
       return {
         ...node,
-        x: existing?.x ?? node.x ?? (centerX + (Math.random() - 0.5) * 100),
-        y: existing?.y ?? node.y ?? (centerY + (Math.random() - 0.5) * 100),
+        x: existing?.x ?? node.x ?? (width / 2 + (Math.random() - 0.5) * 80),
+        y: existing?.y ?? node.y ?? (height / 2 + (Math.random() - 0.5) * 80),
         vx: existing?.vx ?? 0,
         vy: existing?.vy ?? 0,
         fx: existing?.fx ?? null,
@@ -149,11 +197,18 @@ export default function NexusGraph({
       linkForce.links(nextSimLinks);
     }
 
-    // Restart with alphaTarget(0.15) then alphaTarget(0)
-    sim.alphaTarget(0.15).restart();
-    const timeoutId = setTimeout(() => {
-      sim.alphaTarget(0);
-    }, 300);
+    // Restart alpha on new nodes so they settle down after finding positions
+    sim.alpha(0.4).restart();
+
+    let fitTimeout: ReturnType<typeof setTimeout> | undefined;
+    if (nodes.length > 0 && !hasFittedRef.current) {
+      hasFittedRef.current = true;
+      fitTimeout = setTimeout(() => {
+        fitGraph();
+      }, 800);
+    } else if (nodes.length === 0) {
+      hasFittedRef.current = false;
+    }
 
     const svgElement = svgRef.current;
     if (!svgElement) return;
@@ -331,7 +386,9 @@ export default function NexusGraph({
     });
 
     return () => {
-      clearTimeout(timeoutId);
+      if (fitTimeout) {
+        clearTimeout(fitTimeout);
+      }
     };
   }, [nodes, edges, activeAgents, onNodeClick]);
 
