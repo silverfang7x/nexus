@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { forceSimulation, forceManyBody, forceLink, forceCenter, Simulation, SimulationNodeDatum, SimulationLinkDatum } from "d3";
 import { GraphNode, GraphEdge } from "@/types/nexus";
 
@@ -17,6 +17,7 @@ export interface SimEdge extends Omit<GraphEdge, 'source' | 'target'>, Simulatio
 export function useGraph(nodes: GraphNode[], edges: GraphEdge[]) {
   const [simNodes, setSimNodes] = useState<SimNode[]>([]);
   const [simEdges, setSimEdges] = useState<SimEdge[]>([]);
+  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const simulationRef = useRef<Simulation<SimNode, SimEdge> | null>(null);
 
   useEffect(() => {
@@ -46,5 +47,44 @@ export function useGraph(nodes: GraphNode[], edges: GraphEdge[]) {
     };
   }, [nodes, edges]);
 
-  return { simNodes, simEdges };
+  /** Returns all nodes connected to nodeId by any edge */
+  const getConnectedNodes = useCallback(
+    (nodeId: string): GraphNode[] => {
+      const connectedIds = new Set<string>();
+      for (const edge of edges) {
+        const src =
+          typeof edge.source === 'object' && edge.source !== null && 'id' in edge.source
+            ? (edge.source as { id: string }).id
+            : (edge.source as string);
+        const tgt =
+          typeof edge.target === 'object' && edge.target !== null && 'id' in edge.target
+            ? (edge.target as { id: string }).id
+            : (edge.target as string);
+        if (src === nodeId) connectedIds.add(tgt);
+        if (tgt === nodeId) connectedIds.add(src);
+      }
+      return nodes.filter((n) => connectedIds.has(n.id));
+    },
+    [nodes, edges]
+  );
+
+  /** Returns all edges connected to nodeId */
+  const getConnectedEdges = useCallback(
+    (nodeId: string): GraphEdge[] => {
+      return edges.filter((edge) => {
+        const src =
+          typeof edge.source === 'object' && edge.source !== null && 'id' in edge.source
+            ? (edge.source as { id: string }).id
+            : (edge.source as string);
+        const tgt =
+          typeof edge.target === 'object' && edge.target !== null && 'id' in edge.target
+            ? (edge.target as { id: string }).id
+            : (edge.target as string);
+        return src === nodeId || tgt === nodeId;
+      });
+    },
+    [edges]
+  );
+
+  return { simNodes, simEdges, selectedNode, setSelectedNode, getConnectedNodes, getConnectedEdges };
 }

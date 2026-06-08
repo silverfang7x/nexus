@@ -40,13 +40,16 @@ export interface NexusGraphProps {
   edges: GraphEdge[];
   activeAgents: AgentId[];
   onNodeClick?: (node: GraphNode | null) => void;
+  /** ID of the currently selected node — triggers white selection ring */
+  selectedNodeId?: string | null;
 }
 
 export default function NexusGraph({
   nodes,
   edges,
   activeAgents,
-  onNodeClick
+  onNodeClick,
+  selectedNodeId
 }: NexusGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
@@ -452,6 +455,16 @@ export default function NexusGraph({
         event.stopPropagation();
         onNodeClick?.(d);
       })
+      .on('mouseenter', function() {
+        d3.select(this).select('.node-content')
+          .style('transform', 'scale(1.15)')
+          .style('transition', 'transform 150ms ease-out');
+      })
+      .on('mouseleave', function() {
+        d3.select(this).select('.node-content')
+          .style('transform', 'scale(1)')
+          .style('transition', 'transform 150ms ease-out');
+      })
       .call(getDragBehavior(sim) as unknown as (selection: d3.Selection<SVGGElement, SimNode, SVGGElement, unknown>) => void);
 
     // Nested node-content to avoid tick/transition transform conflicts
@@ -507,6 +520,14 @@ export default function NexusGraph({
       .attr('stroke-width', '2')
       .attr('transform', 'rotate(-90)');
 
+    // g) Selection ring (white outer ring when node is selected)
+    nodeContentEnter.append('circle')
+      .attr('class', 'selection-ring')
+      .attr('r', 46)
+      .attr('fill', 'none')
+      .attr('stroke-width', '2')
+      .style('pointer-events', 'none');
+
     // Merge & Update Node Details
     const nodeGroupsMerged = nodeGroupsEnter.merge(nodeGroups);
 
@@ -560,6 +581,13 @@ export default function NexusGraph({
           const confidence = d.confidence ?? 0;
           return `${confidence * 175.93} 175.93`;
         });
+
+      // Selection ring: white with 0.6 opacity when selected
+      const isSelected = d.id === selectedNodeId;
+      el.select('.selection-ring')
+        .attr('stroke', 'rgba(255,255,255,0.6)')
+        .attr('stroke-opacity', isSelected ? 1 : 0)
+        .style('transition', 'stroke-opacity 150ms');
     });
 
     // Animate content scaling up on enter
@@ -592,7 +620,7 @@ export default function NexusGraph({
         clearTimeout(fitTimeout);
       }
     };
-  }, [nodes, edges, activeAgents, onNodeClick]);
+  }, [nodes, edges, activeAgents, onNodeClick, selectedNodeId]);
 
   return (
     <div className="w-full h-full relative overflow-hidden bg-transparent">
