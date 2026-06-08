@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import NexusGraph from '@/components/canvas/NexusGraph';
-import { AgentPanelList } from '@/components/agents/AgentPanel';
+import AgentPanel from '@/components/agents/AgentPanel';
 import ModeSelector from '@/components/ui/ModeSelector';
 import VerdictPanel from '@/components/output/VerdictPanel';
 import { useAgentStream } from '@/hooks/useAgentStream';
@@ -21,6 +21,13 @@ const CORE_AGENTS: AgentId[] = [
   'codeanalyst',
   'synthesizer',
 ];
+
+const MODE_AGENTS: Record<NexusMode, AgentId[]> = {
+  debate: ['advocate', 'challenger', 'factchecker', 'synthesizer'],
+  research: ['factchecker', 'synthesizer'],
+  code: ['codeanalyst', 'synthesizer'],
+  plan: ['advocate', 'factchecker', 'synthesizer'],
+};
 
 const SHEET_SPRING = { type: 'spring', damping: 28, stiffness: 300 } as const;
 
@@ -273,12 +280,39 @@ export default function Dashboard() {
 
   // ── shared node/edge panel content ─────────────────────────────────────────
 
+  const activeAgentIds = MODE_AGENTS[activeMode];
+  const filteredPanels = panelsData.filter((p) => activeAgentIds.includes(p.agentId));
+
+  const renderedAgentPanels = (
+    <div className="flex flex-col gap-4">
+      <AnimatePresence mode="popLayout">
+        {filteredPanels.map((panel, index) => (
+          <motion.div
+            key={panel.agentId}
+            initial={{ opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -16 }}
+            transition={{ duration: 0.2, delay: index * 0.05 }}
+            style={{ width: '100%' }}
+          >
+            <AgentPanel
+              agentId={panel.agentId}
+              status={panel.status}
+              thoughts={panel.thoughts}
+              isActive={panel.isActive}
+            />
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+
   const agentsPanelContent = (
     <div
       style={{ flex: 1, overflowY: 'auto', padding: '0 12px 16px' }}
       className="nx-thin-scroll"
     >
-      <AgentPanelList panels={panelsData} />
+      {renderedAgentPanels}
     </div>
   );
 
@@ -302,7 +336,13 @@ export default function Dashboard() {
         }}
       />
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <VerdictPanel verdict={verdict} />
+        <VerdictPanel 
+          verdict={verdict} 
+          mode={activeMode}
+          nodeCount={nodes.length}
+          edgeCount={edges.length}
+          isRunning={status === 'running'}
+        />
       </div>
     </div>
   );
@@ -449,7 +489,7 @@ export default function Dashboard() {
               zIndex: 20,
             }}
           >
-            <AgentPanelList panels={panelsData} />
+            {renderedAgentPanels}
           </div>
         )}
 
@@ -557,7 +597,13 @@ export default function Dashboard() {
               }}
             />
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <VerdictPanel verdict={verdict} />
+              <VerdictPanel 
+                verdict={verdict} 
+                mode={activeMode}
+                nodeCount={nodes.length}
+                edgeCount={edges.length}
+                isRunning={status === 'running'}
+              />
             </div>
           </div>
         )}
