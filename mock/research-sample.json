@@ -263,7 +263,7 @@
     "agentId": "synthesizer",
     "type": "done",
     "payload": {
-      "text": "Research synthesis complete."
+      "text": "Clean energy is formally defined as electricity generated from zero-emission renewable sources such as wind, solar, geothermal, and hydropower. The technology landscape is advancing rapidly, led by high-efficiency solar cells, advanced utility-scale batteries, and modernized smart grids capable of bidirectional power routing.\n\nHowever, significant economic and integration barriers remain. Grid capacity bottlenecks and transmission congestions currently restrict the connection of new renewable sites, and initial project capital expenses remain substantial despite cost declines. The pace of grid interconnection queue reviews represents a key regulatory bottleneck.\n\nIn practical terms, the clean energy shift has led to massive cost savings, with wind and solar prices dropping over 80% in ten years to become cheaper than fossil fuels. Government incentives, tax credits, and strict decarbonization mandates continue to accelerate enterprise adoption globally."
     },
     "timestamp": 1780905904600
   }

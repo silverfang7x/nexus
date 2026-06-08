@@ -51,7 +51,7 @@ ${timelineOutput}`;
   onEvent({
     agentId: 'synthesizer',
     type: 'done',
-    payload: { text: 'Synthesis complete.' },
+    payload: { text: response },
     timestamp: Date.now()
   });
 

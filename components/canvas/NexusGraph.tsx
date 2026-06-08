@@ -108,11 +108,15 @@ export default function NexusGraph({
         .strength(0.08)
       )
       .force('collision', d3.forceCollide<SimNode>()
-        .radius(52)
-        .strength(0.8)
+        .radius((d) => {
+          if (d.type === 'milestone') return 72;  // more space for week labels
+          if (d.type === 'source') return 65;
+          return 52;
+        })
+        .strength(0.85)
       )
       .force('x', d3.forceX<SimNode>(width / 2).strength(0.04))
-      .force('y', d3.forceY<SimNode>(height / 2).strength(0.04));
+      .force('y', d3.forceY<SimNode>(height * 0.45).strength(0.06));
 
     simulationRef.current = simulation;
 
@@ -138,7 +142,7 @@ export default function NexusGraph({
         sizeRef.current = { width: newWidth, height: newHeight };
         simulation.force('center', d3.forceCenter(newWidth / 2, newHeight / 2));
         simulation.force('x', d3.forceX<SimNode>(newWidth / 2).strength(0.04));
-        simulation.force('y', d3.forceY<SimNode>(newHeight / 2).strength(0.04));
+        simulation.force('y', d3.forceY<SimNode>(newHeight * 0.45).strength(0.06));
         simulation.alpha(0.3).restart();
       });
 

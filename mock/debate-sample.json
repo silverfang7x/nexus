@@ -215,7 +215,7 @@
     "agentId": "orchestrator",
     "type": "done",
     "payload": {
-      "text": "Debate on Should AI replace human workers? concluded."
+      "text": "The debate regarding AI replacing human workers highlights two conflicting paradigms:\n\n1. The Advocate argues that AI stimulates job growth, increases sector-wide productivity, and frees human labor for creative and strategic roles.\n2. The Challenger notes that displacement occurs too rapidly, retraining is slow, wealth is concentrated, and creative jobs are directly targeted.\n\nUltimately, AI will reshape human labor rather than completely replace it. The transition requires active intervention in job retraining and wealth distribution, alongside policies to support creative workers."
     },
     "timestamp": 1780859799018
   }

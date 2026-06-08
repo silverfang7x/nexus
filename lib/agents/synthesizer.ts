@@ -40,7 +40,7 @@ Do not label the paragraphs.`;
   onEvent({
     agentId: 'synthesizer',
     type: 'done',
-    payload: { text: 'Synthesis complete.' },
+    payload: { text: verdictText },
     timestamp: Date.now()
   });
 

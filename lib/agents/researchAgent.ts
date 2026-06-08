@@ -195,7 +195,7 @@ ${analystOutput}`;
   onEvent({
     agentId: 'synthesizer',
     type: 'done',
-    payload: { text: 'Research synthesis complete.' },
+    payload: { text: synthesis },
     timestamp: Date.now()
   });
 

@@ -153,7 +153,7 @@ export default function VerdictPanel({
   }
 
   // 3. Has verdict content
-  const paragraphs = verdict.split(/\n\n+/).filter(Boolean);
+  const paragraphs = verdict.split(/\n\n|\n(?=[A-Z])/).filter(Boolean);
 
   return (
     <div 
