@@ -15,6 +15,7 @@ export interface ClientProcessedQuery {
 }
 
 export function useAgentStream() {
+  const [query, setQuery] = useState<string>('');
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [events, setEvents] = useState<AgentEvent[]>([]);
@@ -24,6 +25,7 @@ export function useAgentStream() {
   const [processedQuery, setProcessedQuery] = useState<ClientProcessedQuery | null>(null);
 
   const startSession = async (mode: NexusMode, query: string, useMock = false) => {
+    setQuery(query);
     setNodes([]);
     setEdges([]);
     setEvents([]);
@@ -112,5 +114,5 @@ export function useAgentStream() {
     }
   };
 
-  return { nodes, edges, events, status, verdict, activeAgents, processedQuery, startSession };
+  return { query, nodes, edges, events, status, verdict, activeAgents, processedQuery, startSession };
 }

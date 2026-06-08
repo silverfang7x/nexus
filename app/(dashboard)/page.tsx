@@ -174,7 +174,7 @@ function FAB({
 // ─── main dashboard ──────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { nodes, edges, events, status, verdict, activeAgents, processedQuery, startSession } =
+  const { query, nodes, edges, events, status, verdict, activeAgents, processedQuery, startSession } =
     useAgentStream();
 
   useGraph(nodes, edges);
@@ -350,6 +350,8 @@ export default function Dashboard() {
           nodeCount={nodes.length}
           edgeCount={edges.length}
           isRunning={status === 'running'}
+          query={query}
+          nodes={nodes}
         />
       </div>
     </div>
@@ -618,6 +620,8 @@ export default function Dashboard() {
                 nodeCount={nodes.length}
                 edgeCount={edges.length}
                 isRunning={status === 'running'}
+                query={query}
+                nodes={nodes}
               />
             </div>
           </div>

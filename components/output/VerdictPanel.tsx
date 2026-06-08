@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { NexusMode } from '@/types/nexus';
+import { NexusMode, GraphNode } from '@/types/nexus';
+import ExportButton from './ExportButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -11,6 +12,8 @@ export interface VerdictPanelProps {
   nodeCount: number;
   edgeCount: number;
   isRunning: boolean;
+  query: string;
+  nodes: GraphNode[];
 }
 
 interface DebateOutput {
@@ -514,6 +517,8 @@ export default function VerdictPanel({
   nodeCount,
   edgeCount,
   isRunning,
+  query,
+  nodes,
 }: VerdictPanelProps) {
   const [copied, setCopied] = useState(false);
 
@@ -640,23 +645,13 @@ export default function VerdictPanel({
         >
           {copied ? 'COPIED' : 'COPY'}
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            const blob = new Blob([verdict], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `nexus-${mode}-output.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-          }}
-          style={actionButtonStyle}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
-        >
-          EXPORT
-        </button>
+        <ExportButton
+          mode={mode}
+          query={query}
+          verdict={verdict}
+          nodes={nodes}
+          disabled={!verdict}
+        />
       </div>
     </div>
   );
