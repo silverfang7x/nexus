@@ -1,5 +1,5 @@
 import { AgentEvent } from "@/types/nexus";
-import { callAgent } from "@/lib/gemini";
+import { streamGroqResponse } from "@/lib/groq";
 
 export async function runBlueprintSynthesizer(
   query: string,
@@ -46,7 +46,7 @@ Rules:
     agentId: 'synthesizer',
     type: 'thinking',
     payload: { text: 'Synthesizing technical blueprint...' },
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   const userMessage = `App Idea: ${query}
@@ -63,21 +63,48 @@ ${riskOutput}
 Project Timeline:
 ${timelineOutput}`;
 
-  const raw = await callAgent(systemPrompt, userMessage);
-  const verdictText = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+  let fullText = '';
+
+  await streamGroqResponse(
+    systemPrompt,
+    userMessage,
+    (token) => {
+      fullText += token;
+      onEvent({
+        agentId: 'synthesizer',
+        type: 'streaming',
+        payload: { token },
+        timestamp: Date.now(),
+      });
+    },
+    (_full) => {
+      onEvent({
+        agentId: 'synthesizer',
+        type: 'complete',
+        payload: { text: _full },
+        timestamp: Date.now(),
+      });
+    }
+  );
+
+  const verdictText = fullText
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/```\s*$/i, '')
+    .trim();
 
   onEvent({
     agentId: 'synthesizer',
     type: 'message',
     payload: { text: verdictText },
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   onEvent({
     agentId: 'synthesizer',
     type: 'done',
     payload: { text: verdictText },
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   return verdictText;

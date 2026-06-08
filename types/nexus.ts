@@ -2,7 +2,7 @@ export type NexusMode = 'debate' | 'research' | 'code' | 'plan';
 
 export type AgentId = 'advocate' | 'challenger' | 'factchecker' | 'codeanalyst' | 'synthesizer' | 'orchestrator';
 
-export type AgentStatus = 'idle' | 'thinking' | 'responding' | 'done' | 'error';
+export type AgentStatus = 'idle' | 'thinking' | 'responding' | 'streaming' | 'done' | 'error';
 
 export type NodeType = 
   | 'claim'        // debate: an argument being made
@@ -40,11 +40,12 @@ export interface GraphEdge {
 
 export interface AgentEvent {
   agentId: AgentId;
-  type: 'thinking' | 'node_created' | 'edge_created' | 'message' | 'done' | 'error' | 'preprocessed';
+  type: 'thinking' | 'node_created' | 'edge_created' | 'message' | 'done' | 'error' | 'preprocessed' | 'streaming' | 'complete';
   payload: {
     node?: GraphNode;
     edge?: GraphEdge;
     text?: string;
+    token?: string;
     error?: string;
     /** Populated for 'preprocessed' events — subset of ProcessedQuery */
     processedQuery?: {

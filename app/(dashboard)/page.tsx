@@ -174,7 +174,7 @@ function FAB({
 // ─── main dashboard ──────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { query, nodes, edges, events, status, verdict, activeAgents, processedQuery, startSession } =
+  const { query, nodes, edges, events, status, verdict, activeAgents, processedQuery, agentThoughts, startSession } =
     useAgentStream();
 
   useGraph(nodes, edges);
@@ -248,13 +248,24 @@ export default function Dashboard() {
   const panelsData = CORE_AGENTS.map((agentId) => {
     const isActive = activeAgents.includes(agentId);
     const agentEvents = events.filter((e) => e.agentId === agentId);
+    // Legacy thoughts array for compatibility (non-streaming fallback)
     const thoughts = agentEvents
       .map((e) => e.payload.text ?? '')
       .filter(Boolean);
 
+    // Streaming text accumulated character-by-character
+    const streamingText = agentThoughts[agentId] ?? '';
+
+    // Has this agent received any streaming tokens in this session?
+    const hasStreaming = agentEvents.some((e) => e.type === 'streaming');
+    const isStreamingNow = isActive && hasStreaming && agentEvents.some((e) => e.type === 'streaming') &&
+      !agentEvents.some((e) => e.type === 'complete' || e.type === 'done');
+
     let agentStatus: AgentStatus = 'idle';
     if (status === 'running') {
-      if (isActive) {
+      if (isStreamingNow) {
+        agentStatus = 'streaming';
+      } else if (isActive) {
         agentStatus = 'responding';
       } else if (agentEvents.length > 0) {
         const last = agentEvents[agentEvents.length - 1];
@@ -263,6 +274,8 @@ export default function Dashboard() {
             ? 'done'
             : last.type === 'error'
             ? 'error'
+            : last.type === 'complete'
+            ? 'done'
             : 'thinking';
       }
     } else if (status === 'complete') {
@@ -274,8 +287,8 @@ export default function Dashboard() {
     return {
       agentId,
       status: agentStatus,
-      thoughts:
-        status === 'idle' ? [] : thoughts,
+      thoughts: status === 'idle' ? [] : thoughts,
+      streamingText,
       isActive,
     };
   });
@@ -301,6 +314,7 @@ export default function Dashboard() {
               agentId={panel.agentId}
               status={panel.status}
               thoughts={panel.thoughts}
+              streamingText={panel.streamingText}
               isActive={panel.isActive}
             />
           </motion.div>

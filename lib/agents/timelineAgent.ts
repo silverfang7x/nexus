@@ -1,5 +1,5 @@
 import { AgentEvent } from "@/types/nexus";
-import { callAgent } from "@/lib/gemini";
+import { streamGroqResponse } from "@/lib/groq";
 import crypto from 'crypto';
 
 export async function runTimelineAgent(
@@ -17,10 +17,33 @@ Week 4: [milestone title] — [one sentence]
 
 Only the timeline.`;
 
-  const response = await callAgent(systemPrompt, query);
+  let fullText = '';
 
-  const lines = response.split("\n");
+  await streamGroqResponse(
+    systemPrompt,
+    query,
+    (token) => {
+      fullText += token;
+      onEvent({
+        agentId: 'synthesizer',
+        type: 'streaming',
+        payload: { token },
+        timestamp: Date.now(),
+      });
+    },
+    (_full) => {
+      onEvent({
+        agentId: 'synthesizer',
+        type: 'complete',
+        payload: { text: _full },
+        timestamp: Date.now(),
+      });
+    }
+  );
+
+  const lines = fullText.split('\n');
   const timelineNodeIds: string[] = [];
+  const emitPromises: Promise<void>[] = [];
 
   for (const line of lines) {
     const match = line.match(/^Week\s*(\d+):\s*(.*)/i);
@@ -33,26 +56,32 @@ Only the timeline.`;
         const nodeId = crypto.randomUUID();
         timelineNodeIds.push(nodeId);
 
-        onEvent({
-          agentId: 'synthesizer',
-          type: 'node_created',
-          payload: {
-            node: {
-              id: nodeId,
-              type: 'milestone',
-              label: `Week ${num}: ${milestoneTitle}`,
-              content: item,
-              agentId: 'synthesizer',
-              timestamp: Date.now()
-            }
-          },
-          timestamp: Date.now()
-        });
-
-        await new Promise(r => setTimeout(r, 300));
+        emitPromises.push(
+          new Promise<void>((resolve) => {
+            setTimeout(() => {
+              onEvent({
+                agentId: 'synthesizer',
+                type: 'node_created',
+                payload: {
+                  node: {
+                    id: nodeId,
+                    type: 'milestone',
+                    label: `Week ${num}: ${milestoneTitle}`,
+                    content: item,
+                    agentId: 'synthesizer',
+                    timestamp: Date.now(),
+                  },
+                },
+                timestamp: Date.now(),
+              });
+              resolve();
+            }, (num - 1) * 300);
+          })
+        );
       }
     }
   }
+  await Promise.all(emitPromises);
 
   // Chain Week 1 -> Week 2 -> Week 3 -> Week 4 with depends edges
   for (let i = 0; i < timelineNodeIds.length - 1; i++) {
@@ -64,13 +93,13 @@ Only the timeline.`;
           id: crypto.randomUUID(),
           source: timelineNodeIds[i],
           target: timelineNodeIds[i + 1],
-          type: 'depends'
-        }
+          type: 'depends',
+        },
       },
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 100));
   }
 
-  return response;
+  return fullText;
 }

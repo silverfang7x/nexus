@@ -1,5 +1,5 @@
 import { AgentEvent } from "@/types/nexus";
-import { callAgent } from "@/lib/gemini";
+import { streamGroqResponse } from "@/lib/groq";
 import crypto from 'crypto';
 
 export async function runChallenger(
@@ -22,11 +22,33 @@ RULES:
 - Nothing before. Nothing after.`;
 
   const userMessage = "Here are the arguments to rebut:\n" + advocateOutput;
-  const response = await callAgent(systemPrompt, userMessage);
+  let fullText = '';
 
-  const lines = response.split("\n");
+  await streamGroqResponse(
+    systemPrompt,
+    userMessage,
+    (token) => {
+      fullText += token;
+      onEvent({
+        agentId: 'challenger',
+        type: 'streaming',
+        payload: { token },
+        timestamp: Date.now(),
+      });
+    },
+    (_full) => {
+      onEvent({
+        agentId: 'challenger',
+        type: 'complete',
+        payload: { text: _full },
+        timestamp: Date.now(),
+      });
+    }
+  );
 
-
+  // Parse and emit graph nodes + edges
+  const lines = fullText.split('\n');
+  const emitPromises: Promise<void>[] = [];
   for (const line of lines) {
     const match = line.match(/^\s*(\d+)\.\s+(.*)/);
     if (match) {
@@ -34,46 +56,47 @@ RULES:
       if (num >= 1 && num <= 4) {
         const rebuttal = match[2].trim();
         const rebuttalNodeId = crypto.randomUUID();
-
-        // Emit node_created for rebuttal
-        onEvent({
-          agentId: 'challenger',
-          type: 'node_created',
-          payload: {
-            node: {
-              id: rebuttalNodeId,
-              type: 'rebuttal',
-              label: rebuttal.slice(0, 28) + (rebuttal.length > 28 ? '...' : ''),
-              content: rebuttal,
-              agentId: 'challenger',
-              timestamp: Date.now()
-            }
-          },
-          timestamp: Date.now()
-        });
-
-        // Emit edge_created linking rebuttal to advocate node
         const targetId = advocateNodeIds[num - 1] || 'claim-' + num;
-        onEvent({
-          agentId: 'challenger',
-          type: 'edge_created',
-          payload: {
-            edge: {
-              id: crypto.randomUUID(),
-              source: rebuttalNodeId,
-              target: targetId,
-              type: 'rebuts'
-            }
-          },
-          timestamp: Date.now()
-        });
 
-
-        // Add 300ms delay between each node/edge pair emit
-        await new Promise(r => setTimeout(r, 300));
+        emitPromises.push(
+          new Promise<void>((resolve) => {
+            setTimeout(() => {
+              onEvent({
+                agentId: 'challenger',
+                type: 'node_created',
+                payload: {
+                  node: {
+                    id: rebuttalNodeId,
+                    type: 'rebuttal',
+                    label: rebuttal.slice(0, 28) + (rebuttal.length > 28 ? '...' : ''),
+                    content: rebuttal,
+                    agentId: 'challenger',
+                    timestamp: Date.now(),
+                  },
+                },
+                timestamp: Date.now(),
+              });
+              onEvent({
+                agentId: 'challenger',
+                type: 'edge_created',
+                payload: {
+                  edge: {
+                    id: crypto.randomUUID(),
+                    source: rebuttalNodeId,
+                    target: targetId,
+                    type: 'rebuts',
+                  },
+                },
+                timestamp: Date.now(),
+              });
+              resolve();
+            }, (num - 1) * 300);
+          })
+        );
       }
     }
   }
+  await Promise.all(emitPromises);
 
-  return response;
+  return fullText;
 }

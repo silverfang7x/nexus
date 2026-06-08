@@ -1,5 +1,5 @@
 import { AgentEvent } from "@/types/nexus";
-import { callAgent } from "@/lib/gemini";
+import { streamGroqResponse } from "@/lib/groq";
 
 export async function runSynthesizer(
   advocateOutput: string,
@@ -26,31 +26,57 @@ Rules:
 - "verdict" is 2-3 sentences, direct and useful
 - Output ONLY the JSON object, nothing else`;
 
-  onEvent({ 
-    agentId: 'synthesizer', 
-    type: 'thinking', 
-    payload: { text: 'Synthesizing debate into structured verdict...' }, 
-    timestamp: Date.now() 
+  onEvent({
+    agentId: 'synthesizer',
+    type: 'thinking',
+    payload: { text: 'Synthesizing debate into structured verdict...' },
+    timestamp: Date.now(),
   });
 
   const userMessage = `Query: ${query}\n\nAdvocate Output:\n${advocateOutput}\n\nChallenger Output:\n${challengerOutput}`;
-  const raw = await callAgent(systemPrompt, userMessage);
+  let fullText = '';
+
+  await streamGroqResponse(
+    systemPrompt,
+    userMessage,
+    (token) => {
+      fullText += token;
+      onEvent({
+        agentId: 'synthesizer',
+        type: 'streaming',
+        payload: { token },
+        timestamp: Date.now(),
+      });
+    },
+    (_full) => {
+      onEvent({
+        agentId: 'synthesizer',
+        type: 'complete',
+        payload: { text: _full },
+        timestamp: Date.now(),
+      });
+    }
+  );
 
   // Strip any accidental markdown fences the model might still emit
-  const verdictText = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+  const verdictText = fullText
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/```\s*$/i, '')
+    .trim();
 
-  onEvent({ 
-    agentId: 'synthesizer', 
+  onEvent({
+    agentId: 'synthesizer',
     type: 'message',
-    payload: { text: verdictText }, 
-    timestamp: Date.now() 
+    payload: { text: verdictText },
+    timestamp: Date.now(),
   });
 
   onEvent({
     agentId: 'synthesizer',
     type: 'done',
     payload: { text: verdictText },
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   return verdictText;

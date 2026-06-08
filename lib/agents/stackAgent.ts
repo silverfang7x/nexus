@@ -1,5 +1,5 @@
 import { AgentEvent } from "@/types/nexus";
-import { callAgent } from "@/lib/gemini";
+import { streamGroqResponse } from "@/lib/groq";
 import crypto from 'crypto';
 
 export async function runStackAgent(
@@ -22,9 +22,32 @@ Format:
 1. [Technology] — [one sentence why]
 Only the list. Nothing else.`;
 
-  const response = await callAgent(systemPrompt, query);
+  let fullText = '';
 
-  const lines = response.split("\n");
+  await streamGroqResponse(
+    systemPrompt,
+    query,
+    (token) => {
+      fullText += token;
+      onEvent({
+        agentId: 'codeanalyst',
+        type: 'streaming',
+        payload: { token },
+        timestamp: Date.now(),
+      });
+    },
+    (_full) => {
+      onEvent({
+        agentId: 'codeanalyst',
+        type: 'complete',
+        payload: { text: _full },
+        timestamp: Date.now(),
+      });
+    }
+  );
+
+  const lines = fullText.split('\n');
+  const emitPromises: Promise<void>[] = [];
   for (const line of lines) {
     const match = line.match(/^\s*(\d+)\.\s+(.*)/);
     if (match) {
@@ -35,42 +58,48 @@ Only the list. Nothing else.`;
         const techName = parts[0].trim();
         const nodeId = crypto.randomUUID();
 
-        onEvent({
-          agentId: 'codeanalyst',
-          type: 'node_created',
-          payload: {
-            node: {
-              id: nodeId,
-              type: 'milestone',
-              label: techName,
-              content: item,
-              agentId: 'codeanalyst',
-              timestamp: Date.now()
-            }
-          },
-          timestamp: Date.now()
-        });
+        emitPromises.push(
+          new Promise<void>((resolve) => {
+            setTimeout(() => {
+              onEvent({
+                agentId: 'codeanalyst',
+                type: 'node_created',
+                payload: {
+                  node: {
+                    id: nodeId,
+                    type: 'milestone',
+                    label: techName,
+                    content: item,
+                    agentId: 'codeanalyst',
+                    timestamp: Date.now(),
+                  },
+                },
+                timestamp: Date.now(),
+              });
 
-        if (coreProblemNodeId) {
-          onEvent({
-            agentId: 'codeanalyst',
-            type: 'edge_created',
-            payload: {
-              edge: {
-                id: crypto.randomUUID(),
-                source: nodeId,
-                target: coreProblemNodeId,
-                type: 'depends'
+              if (coreProblemNodeId) {
+                onEvent({
+                  agentId: 'codeanalyst',
+                  type: 'edge_created',
+                  payload: {
+                    edge: {
+                      id: crypto.randomUUID(),
+                      source: nodeId,
+                      target: coreProblemNodeId,
+                      type: 'depends',
+                    },
+                  },
+                  timestamp: Date.now(),
+                });
               }
-            },
-            timestamp: Date.now()
-          });
-        }
-
-        await new Promise(r => setTimeout(r, 300));
+              resolve();
+            }, (num - 1) * 300);
+          })
+        );
       }
     }
   }
+  await Promise.all(emitPromises);
 
-  return response;
+  return fullText;
 }

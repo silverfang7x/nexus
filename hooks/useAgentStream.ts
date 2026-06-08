@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { AgentEvent, GraphEdge, GraphNode, NexusMode, NexusSession, AgentId } from "@/types/nexus";
 
 /** Mirrors the shape of ProcessedQuery for client-side use */
@@ -24,7 +24,13 @@ export function useAgentStream() {
   const [activeAgents, setActiveAgents] = useState<AgentId[]>([]);
   const [processedQuery, setProcessedQuery] = useState<ClientProcessedQuery | null>(null);
 
-  const startSession = async (mode: NexusMode, query: string, useMock = false) => {
+  /**
+   * agentThoughts: per-agent accumulated streaming text.
+   * Key = agentId, Value = the text currently being typed out character-by-character.
+   */
+  const [agentThoughts, setAgentThoughts] = useState<Record<string, string>>({});
+
+  const startSession = useCallback(async (mode: NexusMode, query: string, useMock = false) => {
     setQuery(query);
     setNodes([]);
     setEdges([]);
@@ -33,6 +39,7 @@ export function useAgentStream() {
     setVerdict('');
     setActiveAgents([]);
     setProcessedQuery(null);
+    setAgentThoughts({});
 
     try {
       const response = await fetch('/api/stream', {
@@ -57,7 +64,7 @@ export function useAgentStream() {
 
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) {
           break;
         }
@@ -73,31 +80,69 @@ export function useAgentStream() {
 
             try {
               const event = JSON.parse(dataStr) as AgentEvent;
-              
+
               setEvents((prev) => [...prev, event]);
 
               if (event.type === 'node_created' && event.payload.node) {
                 setNodes((prev) => [...prev, event.payload.node!]);
+
               } else if (event.type === 'edge_created' && event.payload.edge) {
                 setEdges((prev) => [...prev, event.payload.edge!]);
+
               } else if (event.type === 'thinking') {
+                // 'thinking' event: replace the agent's thought text with the status message
+                // and add the agent to the activeAgents list
                 setActiveAgents((prev) => {
                   if (!prev.includes(event.agentId)) {
                     return [...prev, event.agentId];
                   }
                   return prev;
                 });
+                if (event.payload.text) {
+                  setAgentThoughts((prev) => ({
+                    ...prev,
+                    [event.agentId]: event.payload.text!,
+                  }));
+                }
+
+              } else if (event.type === 'streaming') {
+                // 'streaming' event: APPEND the token to the agent's accumulated text
+                // This creates the typewriter character-by-character effect
+                if (event.payload.token) {
+                  setAgentThoughts((prev) => ({
+                    ...prev,
+                    [event.agentId]: (prev[event.agentId] ?? '') + event.payload.token!,
+                  }));
+                }
+                // Ensure the agent is in activeAgents
+                setActiveAgents((prev) => {
+                  if (!prev.includes(event.agentId)) {
+                    return [...prev, event.agentId];
+                  }
+                  return prev;
+                });
+
+              } else if (event.type === 'complete') {
+                // 'complete' event: stream finished for this agent — keep text, mark done
+                if (event.payload.text) {
+                  setAgentThoughts((prev) => ({
+                    ...prev,
+                    [event.agentId]: event.payload.text!,
+                  }));
+                }
+
               } else if (event.type === 'preprocessed') {
-                // Store the processed query so UI can show "NEXUS UNDERSTOOD" banner
                 if (event.payload.processedQuery) {
                   setProcessedQuery(event.payload.processedQuery as ClientProcessedQuery);
                 }
+
               } else if (event.type === 'done') {
                 if (event.payload.text) {
                   setVerdict(event.payload.text);
                 }
                 setStatus('complete');
                 setActiveAgents([]);
+
               } else if (event.type === 'error') {
                 setStatus('error');
               }
@@ -112,7 +157,18 @@ export function useAgentStream() {
       console.error('Stream error:', err);
       setStatus('error');
     }
-  };
+  }, []);
 
-  return { query, nodes, edges, events, status, verdict, activeAgents, processedQuery, startSession };
+  return {
+    query,
+    nodes,
+    edges,
+    events,
+    status,
+    verdict,
+    activeAgents,
+    processedQuery,
+    agentThoughts,
+    startSession,
+  };
 }

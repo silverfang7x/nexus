@@ -1,5 +1,5 @@
 import { AgentEvent } from "@/types/nexus";
-import { callAgent } from "@/lib/gemini";
+import { streamGroqResponse } from "@/lib/groq";
 import crypto from 'crypto';
 
 export async function runAdvocate(
@@ -21,35 +21,69 @@ RULES:
   4. [argument]
 - Nothing before the list. Nothing after the list.`;
 
-  const response = await callAgent(systemPrompt, query);
+  let fullText = '';
 
-  const lines = response.split("\n");
+  await streamGroqResponse(
+    systemPrompt,
+    query,
+    (token) => {
+      fullText += token;
+
+      // Emit each token as a streaming event so AgentPanel can typewrite it
+      onEvent({
+        agentId: 'advocate',
+        type: 'streaming',
+        payload: { token },
+        timestamp: Date.now(),
+      });
+    },
+    (_full) => {
+      // stream complete — emit graph nodes from the buffered full text
+      onEvent({
+        agentId: 'advocate',
+        type: 'complete',
+        payload: { text: _full },
+        timestamp: Date.now(),
+      });
+    }
+  );
+
+  // Parse lines and emit graph nodes
+  const lines = fullText.split('\n');
+  const emitPromises: Promise<void>[] = [];
   for (const line of lines) {
     const match = line.match(/^\s*(\d+)\.\s+(.*)/);
     if (match) {
       const num = parseInt(match[1], 10);
       if (num >= 1 && num <= 4) {
         const argument = match[2].trim();
-        onEvent({
-          agentId: 'advocate',
-          type: 'node_created',
-          payload: {
-            node: {
-              id: crypto.randomUUID(),
-              type: 'claim',
-              label: argument.slice(0, 28) + (argument.length > 28 ? '...' : ''),
-              content: argument,
-              agentId: 'advocate',
-              confidence: 0.75,
-              timestamp: Date.now()
-            }
-          },
-          timestamp: Date.now()
-        });
-        await new Promise(r => setTimeout(r, 300));
+        emitPromises.push(
+          new Promise<void>((resolve) => {
+            setTimeout(() => {
+              onEvent({
+                agentId: 'advocate',
+                type: 'node_created',
+                payload: {
+                  node: {
+                    id: crypto.randomUUID(),
+                    type: 'claim',
+                    label: argument.slice(0, 28) + (argument.length > 28 ? '...' : ''),
+                    content: argument,
+                    agentId: 'advocate',
+                    confidence: 0.75,
+                    timestamp: Date.now(),
+                  },
+                },
+                timestamp: Date.now(),
+              });
+              resolve();
+            }, (num - 1) * 300);
+          })
+        );
       }
     }
   }
+  await Promise.all(emitPromises);
 
-  return response;
+  return fullText;
 }

@@ -1,5 +1,5 @@
 import { AgentEvent } from "@/types/nexus";
-import { callAgent } from "@/lib/gemini";
+import { streamGroqResponse } from "@/lib/groq";
 import crypto from 'crypto';
 
 export async function runResearchMode(
@@ -13,7 +13,7 @@ export async function runResearchMode(
     agentId: 'factchecker',
     type: 'thinking',
     payload: { text: 'Scouting top 5 key research sub-questions...' },
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   const scoutSystemPrompt = `You are a research agent. Given a topic, identify the 5 most important sub-questions that must be answered to fully understand it.
@@ -27,11 +27,33 @@ Format:
 
 Only the numbered list.`;
 
-  const scoutOutput = await callAgent(scoutSystemPrompt, query);
+  let scoutOutput = '';
+  await streamGroqResponse(
+    scoutSystemPrompt,
+    query,
+    (token) => {
+      scoutOutput += token;
+      onEvent({
+        agentId: 'factchecker',
+        type: 'streaming',
+        payload: { token },
+        timestamp: Date.now(),
+      });
+    },
+    (_full) => {
+      onEvent({
+        agentId: 'factchecker',
+        type: 'complete',
+        payload: { text: _full },
+        timestamp: Date.now(),
+      });
+    }
+  );
 
-  const lines = scoutOutput.split("\n");
+  const lines = scoutOutput.split('\n');
   const questionNodeIds: string[] = [];
   const questionTexts: string[] = [];
+  const scoutNodeEmits: Promise<void>[] = [];
 
   for (const line of lines) {
     const match = line.match(/^\s*(\d+)\.\s+(.*)/);
@@ -43,46 +65,46 @@ Only the numbered list.`;
         questionNodeIds[num - 1] = nodeId;
         questionTexts[num - 1] = questionText;
 
-        // Create short label from question text
         let shortLabel = questionText;
-        if (shortLabel.endsWith('?')) {
-          shortLabel = shortLabel.slice(0, -1);
-        }
-        if (shortLabel.length > 25) {
-          shortLabel = shortLabel.substring(0, 22).trim() + "...";
-        }
+        if (shortLabel.endsWith('?')) shortLabel = shortLabel.slice(0, -1);
+        if (shortLabel.length > 25) shortLabel = shortLabel.substring(0, 22).trim() + '...';
 
-        onEvent({
-          agentId: 'factchecker',
-          type: 'node_created',
-          payload: {
-            node: {
-              id: nodeId,
-              type: 'source',
-              label: shortLabel,
-              content: questionText,
-              agentId: 'factchecker',
-              timestamp: Date.now()
-            }
-          },
-          timestamp: Date.now()
-        });
-
-        // Staggered node emits for visual animation pacing
-        await new Promise(r => setTimeout(r, 300));
+        scoutNodeEmits.push(
+          new Promise<void>((resolve) => {
+            setTimeout(() => {
+              onEvent({
+                agentId: 'factchecker',
+                type: 'node_created',
+                payload: {
+                  node: {
+                    id: nodeId,
+                    type: 'source',
+                    label: shortLabel,
+                    content: questionText,
+                    agentId: 'factchecker',
+                    timestamp: Date.now(),
+                  },
+                },
+                timestamp: Date.now(),
+              });
+              resolve();
+            }, (num - 1) * 300);
+          })
+        );
       }
     }
   }
+  await Promise.all(scoutNodeEmits);
 
   // ──────────────────────────────────────────────────────────────────────────
   // AGENT 2: Analyst (agentId: 'advocate')
   // ──────────────────────────────────────────────────────────────────────────
-  await new Promise(r => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, 400));
   onEvent({
     agentId: 'advocate',
     type: 'thinking',
     payload: { text: 'Analyzing sub-questions and forming findings...' },
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   const analystSystemPrompt = `You are an expert analyst. For each research question below, provide a 1-sentence finding with a confidence level.
@@ -92,12 +114,36 @@ Q[n]: [Finding] [Confidence: High/Medium/Low]
 
 Be specific. Cite general knowledge, not invented sources.`;
 
-  const analystInput = `Topic: ${query}\n\nQuestions to analyze:\n` + 
-    questionTexts.map((q, idx) => `${idx + 1}. ${q}`).join("\n");
+  const analystInput =
+    `Topic: ${query}\n\nQuestions to analyze:\n` +
+    questionTexts.map((q, idx) => `${idx + 1}. ${q}`).join('\n');
 
-  const analystOutput = await callAgent(analystSystemPrompt, analystInput);
+  let analystOutput = '';
+  await streamGroqResponse(
+    analystSystemPrompt,
+    analystInput,
+    (token) => {
+      analystOutput += token;
+      onEvent({
+        agentId: 'advocate',
+        type: 'streaming',
+        payload: { token },
+        timestamp: Date.now(),
+      });
+    },
+    (_full) => {
+      onEvent({
+        agentId: 'advocate',
+        type: 'complete',
+        payload: { text: _full },
+        timestamp: Date.now(),
+      });
+    }
+  );
 
-  const analystLines = analystOutput.split("\n");
+  const analystLines = analystOutput.split('\n');
+  const analystNodeEmits: Promise<void>[] = [];
+
   for (const line of analystLines) {
     const match = line.match(/^\s*Q(\d+):\s*(.*?)\s*\[Confidence:\s*(High|Medium|Low)\]/i);
     if (match) {
@@ -105,7 +151,6 @@ Be specific. Cite general knowledge, not invented sources.`;
       if (num >= 1 && num <= 5) {
         const finding = match[2].trim();
         const confidenceLabel = match[3].toLowerCase();
-        
         let confidenceValue = 0.65;
         if (confidenceLabel === 'high') confidenceValue = 0.9;
         else if (confidenceLabel === 'low') confidenceValue = 0.4;
@@ -114,63 +159,60 @@ Be specific. Cite general knowledge, not invented sources.`;
         if (!sourceNodeId) continue;
 
         const factNodeId = crypto.randomUUID();
-
-        // Create short label from finding
         let shortLabel = finding;
-        if (shortLabel.length > 25) {
-          shortLabel = shortLabel.substring(0, 22).trim() + "...";
-        }
+        if (shortLabel.length > 25) shortLabel = shortLabel.substring(0, 22).trim() + '...';
 
-        // Emit Fact Node
-        onEvent({
-          agentId: 'advocate',
-          type: 'node_created',
-          payload: {
-            node: {
-              id: factNodeId,
-              type: 'fact',
-              label: shortLabel,
-              content: finding,
-              agentId: 'advocate',
-              confidence: confidenceValue,
-              timestamp: Date.now()
-            }
-          },
-          timestamp: Date.now()
-        });
+        analystNodeEmits.push(
+          new Promise<void>((resolve) => {
+            setTimeout(() => {
+              onEvent({
+                agentId: 'advocate',
+                type: 'node_created',
+                payload: {
+                  node: {
+                    id: factNodeId,
+                    type: 'fact',
+                    label: shortLabel,
+                    content: finding,
+                    agentId: 'advocate',
+                    confidence: confidenceValue,
+                    timestamp: Date.now(),
+                  },
+                },
+                timestamp: Date.now(),
+              });
 
-        await new Promise(r => setTimeout(r, 150));
-
-        // Emit edge linking fact to source question
-        onEvent({
-          agentId: 'advocate',
-          type: 'edge_created',
-          payload: {
-            edge: {
-              id: crypto.randomUUID(),
-              source: factNodeId,
-              target: sourceNodeId,
-              type: 'verifies'
-            }
-          },
-          timestamp: Date.now()
-        });
-
-        // Staggered pacing
-        await new Promise(r => setTimeout(r, 200));
+              onEvent({
+                agentId: 'advocate',
+                type: 'edge_created',
+                payload: {
+                  edge: {
+                    id: crypto.randomUUID(),
+                    source: factNodeId,
+                    target: sourceNodeId,
+                    type: 'verifies',
+                  },
+                },
+                timestamp: Date.now(),
+              });
+              resolve();
+            }, (num - 1) * 350);
+          })
+        );
       }
     }
   }
+  await Promise.all(analystNodeEmits);
 
   // ──────────────────────────────────────────────────────────────────────────
   // AGENT 3: Synthesizer (agentId: 'synthesizer')
   // ──────────────────────────────────────────────────────────────────────────
-  await new Promise(r => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, 400));
   onEvent({
     agentId: 'synthesizer',
     type: 'thinking',
     payload: { text: 'Synthesizing comprehensive research blueprint...' },
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   const synthesizerSystemPrompt = `You are a research synthesizer.
@@ -204,21 +246,47 @@ ${scoutOutput}
 Findings:
 ${analystOutput}`;
 
-  const rawSynthesis = await callAgent(synthesizerSystemPrompt, synthesizerInput);
-  const synthesis = rawSynthesis.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+  let rawSynthesis = '';
+  await streamGroqResponse(
+    synthesizerSystemPrompt,
+    synthesizerInput,
+    (token) => {
+      rawSynthesis += token;
+      onEvent({
+        agentId: 'synthesizer',
+        type: 'streaming',
+        payload: { token },
+        timestamp: Date.now(),
+      });
+    },
+    (_full) => {
+      onEvent({
+        agentId: 'synthesizer',
+        type: 'complete',
+        payload: { text: _full },
+        timestamp: Date.now(),
+      });
+    }
+  );
+
+  const synthesis = rawSynthesis
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/```\s*$/i, '')
+    .trim();
 
   onEvent({
     agentId: 'synthesizer',
     type: 'message',
     payload: { text: synthesis },
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   onEvent({
     agentId: 'synthesizer',
     type: 'done',
     payload: { text: synthesis },
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   return synthesis;
