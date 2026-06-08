@@ -535,6 +535,7 @@ export default function Dashboard() {
             activeAgents={activeAgents}
             onNodeClick={setSelectedNode}
             selectedNodeId={selectedNode?.id ?? null}
+            mode={activeMode}
           />
 
           {/* Empty-state overlay */}

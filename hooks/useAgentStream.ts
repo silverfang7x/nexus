@@ -84,10 +84,16 @@ export function useAgentStream() {
               setEvents((prev) => [...prev, event]);
 
               if (event.type === 'node_created' && event.payload.node) {
-                setNodes((prev) => [...prev, event.payload.node!]);
+                setNodes((prev) => {
+                  const filtered = prev.filter(n => n.id !== event.payload.node!.id);
+                  return [...filtered, event.payload.node!];
+                });
 
               } else if (event.type === 'edge_created' && event.payload.edge) {
-                setEdges((prev) => [...prev, event.payload.edge!]);
+                setEdges((prev) => {
+                  const filtered = prev.filter(e => e.id !== event.payload.edge!.id);
+                  return [...filtered, event.payload.edge!];
+                });
 
               } else if (event.type === 'thinking') {
                 // 'thinking' event: replace the agent's thought text with the status message

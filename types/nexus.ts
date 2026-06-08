@@ -28,6 +28,7 @@ export interface GraphNode {
   timestamp: number;
   x?: number;
   y?: number;
+  color?: string;
 }
 
 export interface GraphEdge {

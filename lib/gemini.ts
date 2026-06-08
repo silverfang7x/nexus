@@ -8,11 +8,17 @@ interface GeminiError {
   statusText?: string;
 }
 
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error("Missing GEMINI_API_KEY environment variable");
+let _genAI: GoogleGenerativeAI | null = null;
+function getGenAI(): GoogleGenerativeAI {
+  if (!_genAI) {
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error("Missing GEMINI_API_KEY environment variable");
+    }
+    _genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  }
+  return _genAI;
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const DEFAULT_MODEL = "gemini-2.5-flash-latest";
 
 export async function callAgent(
@@ -20,7 +26,7 @@ export async function callAgent(
   userMessage: string,
   conversationHistory?: { role: string; content: string }[]
 ): Promise<string> {
-  const model = genAI.getGenerativeModel({
+  const model = getGenAI().getGenerativeModel({
     model: 'gemini-2.5-flash-latest',
     systemInstruction: systemPrompt,
     generationConfig: {
@@ -68,7 +74,7 @@ export async function streamAgent(
   userMessage: string,
   onChunk: (text: string) => void
 ): Promise<string> {
-  const model = genAI.getGenerativeModel({
+  const model = getGenAI().getGenerativeModel({
     model: DEFAULT_MODEL,
     systemInstruction: systemPrompt,
   });

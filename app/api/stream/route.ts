@@ -1,5 +1,6 @@
 import { AgentEvent, NexusMode } from "@/types/nexus";
 import { runDebateMode, runPlanMode, runResearchMode } from "@/lib/agents/orchestrator";
+import { runCodeMode } from "@/lib/agents/codeanalyst";
 import { preprocessQuery } from "@/lib/queryPreprocessor";
 import * as fs from "fs";
 import * as path from "path";
@@ -92,6 +93,14 @@ export async function POST(request: Request) {
             });
           } else if (mode === "research") {
             const verdict = await runResearchMode(enriched, send);
+            send({
+              agentId: "orchestrator",
+              type: "done",
+              payload: { text: verdict },
+              timestamp: Date.now()
+            });
+          } else if (mode === "code") {
+            const verdict = await runCodeMode(enriched, send);
             send({
               agentId: "orchestrator",
               type: "done",
