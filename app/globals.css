@@ -69,7 +69,58 @@
   --nx-transition-fast: 120ms ease;
   --nx-transition-base: 200ms ease;
   --nx-transition-slow: 350ms ease;
+
+  /* === CANVAS ATMOSPHERE DEFAULTS === */
+  --nx-canvas-tint: rgba(255, 255, 255, 0.0);
+  --nx-canvas-grid: rgba(255, 255, 255, 0.02);
+  --nx-orbit-color: #c5c0ff;
+  --nx-edge-default: rgba(255, 255, 255, 0.1);
 }
+
+[data-mode="debate"] {
+  --nx-canvas-tint: rgba(220, 80, 60, 0.03);
+  --nx-canvas-grid: rgba(220, 80, 60, 0.06);
+  --nx-orbit-color: #DC503C;
+  --nx-edge-default: rgba(220, 80, 60, 0.4);
+  --nx-border: rgba(220, 80, 60, 0.12);
+}
+
+[data-mode="research"] {
+  --nx-canvas-tint: rgba(32, 178, 170, 0.03);
+  --nx-canvas-grid: rgba(32, 178, 170, 0.06);
+  --nx-orbit-color: #20B2AA;
+  --nx-edge-default: rgba(32, 178, 170, 0.4);
+  --nx-border: rgba(32, 178, 170, 0.12);
+}
+
+[data-mode="plan"] {
+  --nx-canvas-tint: rgba(218, 165, 32, 0.03);
+  --nx-canvas-grid: rgba(218, 165, 32, 0.06);
+  --nx-orbit-color: #DAA520;
+  --nx-edge-default: rgba(218, 165, 32, 0.4);
+  --nx-border: rgba(218, 165, 32, 0.12);
+}
+
+[data-mode="code"] {
+  --nx-canvas-tint: rgba(30, 100, 200, 0.03);
+  --nx-canvas-grid: rgba(30, 100, 200, 0.06);
+  --nx-orbit-color: #1E64C8;
+  --nx-edge-default: rgba(30, 100, 200, 0.4);
+  --nx-border: rgba(30, 100, 200, 0.12);
+}
+
+/* Color temperature smooth transition rules */
+[data-mode] {
+  transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+
+[data-mode] main,
+[data-mode] div,
+[data-mode] svg,
+[data-mode] line {
+  transition: background-color 0.4s ease, border-color 0.4s ease, stroke 0.4s ease, fill 0.4s ease;
+}
+
 
 /* ── SECTION 3b: Tailwind v4 @theme block ────────────────────────────────── */
 /* Registers tokens as Tailwind utility classes (e.g. text-nx-advocate,       */

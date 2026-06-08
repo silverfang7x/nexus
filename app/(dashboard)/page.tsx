@@ -499,6 +499,7 @@ export default function Dashboard() {
 
       {/* ── desktop 3-column grid ──────────────────────────────────────── */}
       <main
+        data-mode={activeMode}
         style={{
           display: 'grid',
           gridTemplateColumns: isMobile ? '1fr' : '280px 1fr 320px',
@@ -605,11 +606,12 @@ export default function Dashboard() {
             onNodeClick={setSelectedNode}
             selectedNodeId={selectedNode?.id ?? null}
             mode={activeMode}
+            status={status}
           />
 
           {/* Empty-state overlay */}
           <AnimatePresence>
-            {nodes.length === 0 && (
+            {nodes.length === 0 && status === 'idle' && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}

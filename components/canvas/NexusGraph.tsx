@@ -2,8 +2,10 @@
 
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
+import { motion, AnimatePresence } from 'framer-motion';
 import { GraphNode, GraphEdge, AgentId, EdgeType, NexusMode } from '@/types/nexus';
 import { getAgentColor } from './GraphNode';
+import LoadingOrbit from './LoadingOrbit';
 
 interface SimNode extends GraphNode, d3.SimulationNodeDatum {}
 
@@ -43,6 +45,7 @@ export interface NexusGraphProps {
   /** ID of the currently selected node — triggers white selection ring */
   selectedNodeId?: string | null;
   mode: NexusMode;
+  status: 'idle' | 'running' | 'complete' | 'error';
 }
 
 export default function NexusGraph({
@@ -51,7 +54,8 @@ export default function NexusGraph({
   activeAgents,
   onNodeClick,
   selectedNodeId,
-  mode
+  mode,
+  status
 }: NexusGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
@@ -600,7 +604,7 @@ export default function NexusGraph({
     const nodeContentEnter = nodeGroupsEnter.append('g')
       .attr('class', 'node-content')
       .style('opacity', 0)
-      .attr('transform', 'scale(0.3)');
+      .attr('transform', 'scale(0)');
 
     // a) Circle 1 — outer ambient glow
     nodeContentEnter.append('circle')
@@ -801,10 +805,14 @@ export default function NexusGraph({
         .style('transition', 'stroke-opacity 150ms');
     });
 
-    // Animate content scaling up on enter
+    // Animate content scaling up on enter (with spring easing and staggered delay)
     nodeContentEnter.transition()
-      .duration(350)
-      .ease(d3.easeBackOut.overshoot(1.4))
+      .delay((d) => {
+        const index = nodes.findIndex(n => n.id === d.id);
+        return Math.min(index * 80, 400);
+      })
+      .duration(400)
+      .ease(d3.easeBackOut.overshoot(1.7))
       .style('opacity', 1)
       .attr('transform', 'scale(1)');
 
@@ -834,7 +842,38 @@ export default function NexusGraph({
   }, [nodes, edges, activeAgents, onNodeClick, selectedNodeId, mode]);
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-transparent">
+    <div 
+      className="w-full h-full relative overflow-hidden"
+      data-mode={mode}
+      style={{
+        backgroundColor: 'var(--nx-canvas-tint)',
+        backgroundImage: 'radial-gradient(var(--nx-canvas-grid) 1.5px, transparent 1.5px)',
+        backgroundSize: '24px 24px',
+        transition: 'background-color 0.4s ease, border-color 0.4s ease',
+      }}
+    >
+      <AnimatePresence>
+        {status === 'running' && nodes.length === 0 && (
+          <motion.div
+            key="loading-orbit"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 20,
+              pointerEvents: 'none'
+            }}
+          >
+            <LoadingOrbit activeAgents={activeAgents} />
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Self-contained CSS injection for keyframe pulse animations */}
       <style>{`
         @keyframes glow-pulse {
