@@ -174,7 +174,7 @@ function FAB({
 // ─── main dashboard ──────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { nodes, edges, events, status, verdict, activeAgents, startSession } =
+  const { nodes, edges, events, status, verdict, activeAgents, processedQuery, startSession } =
     useAgentStream();
 
   useGraph(nodes, edges);
@@ -264,7 +264,7 @@ export default function Dashboard() {
 
   const handleQuerySubmit = useCallback(
     (query: string) => {
-      const isMock = activeMode !== 'debate' || query.includes('--mock');
+      const isMock = query.includes('--mock');
       startSession(activeMode, query.replace('--mock', '').trim(), isMock);
     },
     [activeMode, startSession]
@@ -354,6 +354,12 @@ export default function Dashboard() {
           setOutputOpen(false);
         }}
         isRunning={status === 'running'}
+        suggestedMode={
+          processedQuery && processedQuery.modeConfidence >= 0.65
+            ? processedQuery.detectedMode
+            : null
+        }
+        onAcceptSuggestion={(m) => setActiveMode(m)}
       />
       <div
         style={{
@@ -615,6 +621,12 @@ export default function Dashboard() {
                 onModeChange={setActiveMode}
                 onSubmit={handleQuerySubmit}
                 isRunning={status === 'running'}
+                suggestedMode={
+                  processedQuery && processedQuery.modeConfidence >= 0.65
+                    ? processedQuery.detectedMode
+                    : null
+                }
+                onAcceptSuggestion={(m) => setActiveMode(m)}
               />
             </div>
             <div

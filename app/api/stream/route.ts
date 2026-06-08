@@ -1,5 +1,6 @@
 import { AgentEvent, NexusMode } from "@/types/nexus";
 import { runDebateMode, runPlanMode, runResearchMode } from "@/lib/agents/orchestrator";
+import { preprocessQuery } from "@/lib/queryPreprocessor";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -45,8 +46,36 @@ export async function POST(request: Request) {
             });
           }
         } else {
+          // ── STEP 1: Preprocess the query ─────────────────────────────────
+          const processed = await preprocessQuery(query, mode);
+
+          // Emit a preprocessed event so the UI can show "NEXUS UNDERSTOOD"
+          send({
+            agentId: "orchestrator",
+            type: "preprocessed",
+            payload: {
+              text: processed.cleanQuery,
+              processedQuery: {
+                cleanQuery: processed.cleanQuery,
+                detectedMode: processed.detectedMode,
+                modeConfidence: processed.modeConfidence,
+                intent: processed.intent,
+                domain: processed.domain,
+                entities: processed.entities,
+                wasAmbiguous: processed.wasAmbiguous,
+                originalQuery: processed.originalQuery,
+                enrichedQuery: processed.enrichedQuery,
+              },
+            },
+            timestamp: Date.now()
+          });
+
+          // Use the enriched query for all agents
+          const enriched = processed.enrichedQuery;
+
+          // ── STEP 2: Route to the correct mode ──────────────────────────
           if (mode === "debate") {
-            const verdict = await runDebateMode(query, send);
+            const verdict = await runDebateMode(enriched, send);
             send({
               agentId: "orchestrator",
               type: "done",
@@ -54,7 +83,7 @@ export async function POST(request: Request) {
               timestamp: Date.now()
             });
           } else if (mode === "plan") {
-            const verdict = await runPlanMode(query, send);
+            const verdict = await runPlanMode(enriched, send);
             send({
               agentId: "orchestrator",
               type: "done",
@@ -62,7 +91,7 @@ export async function POST(request: Request) {
               timestamp: Date.now()
             });
           } else if (mode === "research") {
-            const verdict = await runResearchMode(query, send);
+            const verdict = await runResearchMode(enriched, send);
             send({
               agentId: "orchestrator",
               type: "done",

@@ -40,12 +40,24 @@ export interface GraphEdge {
 
 export interface AgentEvent {
   agentId: AgentId;
-  type: 'thinking' | 'node_created' | 'edge_created' | 'message' | 'done' | 'error';
+  type: 'thinking' | 'node_created' | 'edge_created' | 'message' | 'done' | 'error' | 'preprocessed';
   payload: {
     node?: GraphNode;
     edge?: GraphEdge;
     text?: string;
     error?: string;
+    /** Populated for 'preprocessed' events — subset of ProcessedQuery */
+    processedQuery?: {
+      cleanQuery: string;
+      detectedMode: NexusMode;
+      modeConfidence: number;
+      intent: string;
+      domain: string;
+      entities: string[];
+      wasAmbiguous: boolean;
+      originalQuery: string;
+      enrichedQuery: string;
+    };
   };
   timestamp: number;
 }

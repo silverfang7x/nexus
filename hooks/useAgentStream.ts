@@ -1,6 +1,19 @@
 import { useState } from "react";
 import { AgentEvent, GraphEdge, GraphNode, NexusMode, NexusSession, AgentId } from "@/types/nexus";
 
+/** Mirrors the shape of ProcessedQuery for client-side use */
+export interface ClientProcessedQuery {
+  cleanQuery: string;
+  detectedMode: NexusMode;
+  modeConfidence: number;
+  intent: string;
+  domain: string;
+  entities: string[];
+  wasAmbiguous: boolean;
+  originalQuery: string;
+  enrichedQuery: string;
+}
+
 export function useAgentStream() {
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
@@ -8,6 +21,7 @@ export function useAgentStream() {
   const [status, setStatus] = useState<NexusSession['status']>('idle');
   const [verdict, setVerdict] = useState<string>('');
   const [activeAgents, setActiveAgents] = useState<AgentId[]>([]);
+  const [processedQuery, setProcessedQuery] = useState<ClientProcessedQuery | null>(null);
 
   const startSession = async (mode: NexusMode, query: string, useMock = false) => {
     setNodes([]);
@@ -16,6 +30,7 @@ export function useAgentStream() {
     setStatus('running');
     setVerdict('');
     setActiveAgents([]);
+    setProcessedQuery(null);
 
     try {
       const response = await fetch('/api/stream', {
@@ -70,6 +85,11 @@ export function useAgentStream() {
                   }
                   return prev;
                 });
+              } else if (event.type === 'preprocessed') {
+                // Store the processed query so UI can show "NEXUS UNDERSTOOD" banner
+                if (event.payload.processedQuery) {
+                  setProcessedQuery(event.payload.processedQuery as ClientProcessedQuery);
+                }
               } else if (event.type === 'done') {
                 if (event.payload.text) {
                   setVerdict(event.payload.text);
@@ -92,5 +112,5 @@ export function useAgentStream() {
     }
   };
 
-  return { nodes, edges, events, status, verdict, activeAgents, startSession };
+  return { nodes, edges, events, status, verdict, activeAgents, processedQuery, startSession };
 }

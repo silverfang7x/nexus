@@ -9,6 +9,10 @@ export interface ModeSelectorProps {
   onModeChange: (mode: NexusMode) => void;
   onSubmit: (query: string) => void;
   isRunning: boolean;
+  /** If set, shows a "NEXUS suggests <mode>" banner */
+  suggestedMode?: NexusMode | null;
+  /** Called when user accepts the suggested mode */
+  onAcceptSuggestion?: (mode: NexusMode) => void;
 }
 
 const placeholders: Record<NexusMode, string> = {
@@ -18,22 +22,41 @@ const placeholders: Record<NexusMode, string> = {
   plan: "Describe your app idea — be as vague or specific as you want..."
 };
 
+const MODE_LABELS: Record<NexusMode, string> = {
+  debate: "DEBATE",
+  research: "RESEARCH",
+  code: "CODE",
+  plan: "PLAN",
+};
+
 export default function ModeSelector({
   activeMode,
   onModeChange,
   onSubmit,
-  isRunning
+  isRunning,
+  suggestedMode,
+  onAcceptSuggestion,
 }: ModeSelectorProps) {
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const modes: NexusMode[] = ['debate', 'research', 'code', 'plan'];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || isRunning) return;
+    setBannerDismissed(false); // reset banner for next run
     onSubmit(query);
   };
+
+  // Show the suggestion banner when:
+  //  - suggestedMode is set and differs from activeMode
+  //  - not dismissed by user
+  const showBanner =
+    !bannerDismissed &&
+    !!suggestedMode &&
+    suggestedMode !== activeMode;
 
   return (
     <div className="w-full bg-transparent">
@@ -71,6 +94,92 @@ export default function ModeSelector({
           );
         })}
       </div>
+
+      {/* Mode suggestion banner */}
+      <AnimatePresence>
+        {showBanner && suggestedMode && (
+          <motion.div
+            key="suggestion-banner"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              overflow: 'hidden',
+              marginTop: 8,
+              padding: '8px 10px',
+              backgroundColor: 'rgba(127, 119, 221, 0.1)',
+              border: '1px solid rgba(127, 119, 221, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: 'var(--nx-font-mono), monospace',
+                fontSize: '10px',
+                color: 'rgba(255, 255, 255, 0.7)',
+                lineHeight: 1.4,
+              }}
+            >
+              <span style={{ color: '#7F77DD', fontWeight: 700 }}>NEXUS</span>{' '}
+              suggests{' '}
+              <span style={{ color: '#fff', fontWeight: 700 }}>
+                {MODE_LABELS[suggestedMode]}
+              </span>{' '}
+              mode for this query
+            </span>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  onAcceptSuggestion?.(suggestedMode);
+                  setBannerDismissed(true);
+                }}
+                style={{
+                  fontFamily: 'var(--nx-font-mono), monospace',
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  padding: '3px 8px',
+                  border: '1px solid rgba(127, 119, 221, 0.6)',
+                  backgroundColor: 'rgba(127, 119, 221, 0.15)',
+                  color: '#7F77DD',
+                  cursor: 'pointer',
+                  transition: 'background 150ms',
+                  textTransform: 'uppercase',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(127, 119, 221, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(127, 119, 221, 0.15)';
+                }}
+              >
+                Switch
+              </button>
+              <button
+                type="button"
+                onClick={() => setBannerDismissed(true)}
+                style={{
+                  fontFamily: 'var(--nx-font-mono), monospace',
+                  fontSize: '9px',
+                  padding: '3px 8px',
+                  border: '1px solid var(--nx-border)',
+                  backgroundColor: 'transparent',
+                  color: 'rgba(255,255,255,0.35)',
+                  cursor: 'pointer',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Keep
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <form onSubmit={handleSubmit} className="w-full flex flex-col">
         {/* Section Label */}
