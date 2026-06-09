@@ -11,9 +11,9 @@ import { saveSession, getSessions, NexusSession } from '@/lib/sessionStorage';
 import { useAgentStream } from '@/hooks/useAgentStream';
 import { useGraph } from '@/hooks/useGraph';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { AgentId, AgentStatus, NexusMode, GraphNode } from '@/types/nexus';
+import { AgentId, AgentStatus, NexusMode, GraphNode, AgentEvent } from '@/types/nexus';
 import { getAgentColor } from '@/components/canvas/GraphNode';
-import NodeDetailDrawer from '@/components/canvas/NodeDetailDrawer';
+import NodeDetailPanel from '@/components/canvas/NodeDetailPanel';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -176,7 +176,7 @@ function FAB({
 // ─── main dashboard ──────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { query, nodes, edges, events, status, verdict, activeAgents, processedQuery, agentThoughts, startSession, restoreSession } =
+  const { query, nodes, edges, events, status, verdict, activeAgents, processedQuery, agentThoughts, startSession, restoreSession, addNode, addEdge } =
     useAgentStream();
 
   useGraph(nodes, edges);
@@ -188,6 +188,68 @@ export default function Dashboard() {
   const [agentsOpen, setAgentsOpen] = useState(false);
   const [outputOpen, setOutputOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [expandingNode, setExpandingNode] = useState<string | null>(null);
+
+  const handleExpandTasks = useCallback(async (node: GraphNode) => {
+    setExpandingNode(node.id);
+    
+    // Build project context from existing nodes
+    const projectContext = nodes
+      .filter(n => n.type === 'feature' || n.type === 'milestone')
+      .map(n => n.label + ': ' + n.content)
+      .slice(0, 6)  // max 6 nodes for context
+      .join('\n');
+    
+    try {
+      // Consume the SSE stream from /api/decompose
+      const response = await fetch('/api/decompose', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          milestoneLabel: node.label,
+          milestoneContent: node.content,
+          projectContext,
+          parentNodeId: node.id
+        })
+      });
+      
+      // Read SSE stream — reuse the same pattern as useAgentStream
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) return;
+      
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const event: AgentEvent = JSON.parse(trimmed.slice(6));
+              if (event.type === 'node_created' && event.payload.node) {
+                addNode(event.payload.node);
+              }
+              if (event.type === 'edge_created' && event.payload.edge) {
+                addEdge(event.payload.edge);
+              }
+            } catch {}
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error expanding milestone tasks:", err);
+    } finally {
+      setExpandingNode(null);
+      setSelectedNode(null);  // close the detail panel
+    }
+  }, [nodes, addNode, addEdge]);
 
   // --- Session History State & Refs ---
   const [sessions, setSessions] = useState<NexusSession[]>(() => {
@@ -465,6 +527,23 @@ export default function Dashboard() {
       DEMO
     </button>
   );
+
+  // Compute connected nodes for selectedNode
+  const connectedNodes = selectedNode
+    ? nodes.filter(n =>
+        edges.some(
+          e => {
+            const src = typeof e.source === 'object' && e.source !== null && 'id' in e.source
+              ? (e.source as { id: string }).id
+              : e.source as string;
+            const tgt = typeof e.target === 'object' && e.target !== null && 'id' in e.target
+              ? (e.target as { id: string }).id
+              : e.target as string;
+            return (src === selectedNode.id && tgt === n.id) || (tgt === selectedNode.id && src === n.id);
+          }
+        )
+      )
+    : [];
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -862,14 +941,18 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* Node Detail Drawer — slides up from bottom on node click */}
+      {/* Node Detail Panel — slides up from bottom on node click */}
       <AnimatePresence>
-        <NodeDetailDrawer
-          node={selectedNode}
-          onClose={() => setSelectedNode(null)}
-          allNodes={nodes}
-          allEdges={edges}
-        />
+        {selectedNode && (
+          <NodeDetailPanel
+            node={selectedNode}
+            connectedNodes={connectedNodes}
+            allNodes={nodes}
+            onClose={() => setSelectedNode(null)}
+            onExpandTasks={handleExpandTasks}
+            isExpanding={expandingNode === selectedNode.id}
+          />
+        )}
       </AnimatePresence>
     </>
   );

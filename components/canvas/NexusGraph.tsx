@@ -106,8 +106,20 @@ export default function NexusGraph({
       .velocityDecay(0.4)
       .force('link', d3.forceLink<SimNode, SimLink>()
         .id((d: SimNode) => d.id)
-        .distance(110)
-        .strength(0.6)
+        .distance((link) => {
+          const src = typeof link.source === 'object' ? (link.source as SimNode) : null;
+          if (src && src.type === 'task') {
+            return 55;
+          }
+          return 110;
+        })
+        .strength((link) => {
+          const src = typeof link.source === 'object' ? (link.source as SimNode) : null;
+          if (src && src.type === 'task') {
+            return 0.9;
+          }
+          return 0.6;
+        })
       )
       .force('charge', d3.forceManyBody()
         .strength(-220)
@@ -120,6 +132,7 @@ export default function NexusGraph({
         .radius((d) => {
           if (d.type === 'milestone') return 72;  // more space for week labels
           if (d.type === 'source') return 65;
+          if (d.type === 'task') return 35;       // tighter spacing for tasks
           return 52;
         })
         .strength(0.85)
@@ -692,26 +705,27 @@ export default function NexusGraph({
 
     nodeGroupsMerged.each(function(d) {
       const el = d3.select(this);
-      const color = d.color || getAgentColor(d.agentId);
+      const isTask = d.type === 'task';
+      const color = isTask ? 'rgba(55, 138, 221, 0.7)' : (d.color || getAgentColor(d.agentId));
       const isAgentActive = activeAgents.includes(d.agentId);
       const isFile = d.type === 'file';
       const isIssue = d.type === 'issue';
       const isCodeMode = mode === 'code';
 
-      // Circle 1 - outer ambient glow (hide for issues or files in code mode)
+      // Circle 1 - outer ambient glow (hide for issues, tasks, or files in code mode)
       el.select('.glow-outer')
-        .style('display', (isIssue || (isCodeMode && isFile)) ? 'none' : 'block')
+        .style('display', (isIssue || isTask || (isCodeMode && isFile)) ? 'none' : 'block')
         .attr('fill', color)
         .attr('fill-opacity', 0.06);
 
-      // Circle 2 - mid ring (hide for issues or files in code mode)
+      // Circle 2 - mid ring (hide for issues, tasks, or files in code mode)
       const midRing = el.select('.glow-mid');
       midRing
         .attr('stroke', color)
         .attr('stroke-opacity', 0.4)
-        .style('display', (isAgentActive && !isIssue && !(isCodeMode && isFile)) ? 'block' : 'none');
+        .style('display', (isAgentActive && !isIssue && !isTask && !(isCodeMode && isFile)) ? 'block' : 'none');
 
-      if (isAgentActive && !isIssue && !(isCodeMode && isFile)) {
+      if (isAgentActive && !isIssue && !isTask && !(isCodeMode && isFile)) {
         midRing.style('animation', 'nx-pulse-ring 2s ease-out infinite');
         midRing.style('transform-origin', 'center');
         midRing.style('transform-box', 'fill-box');
@@ -719,15 +733,16 @@ export default function NexusGraph({
         midRing.style('animation', null);
       }
 
-      // Circle 3 - inner circle (hide for files in code mode, adjust size for issues)
-      const r = isIssue ? 12 : 22;
+      // Circle 3 - inner circle (hide for files in code mode, adjust size for issues or tasks)
+      const r = isIssue ? 12 : (isTask ? 16 : 22);
       el.select('.inner-circle')
         .style('display', (isCodeMode && isFile) ? 'none' : 'block')
         .attr('r', r)
         .attr('fill', color)
         .attr('fill-opacity', isIssue ? 0.9 : 0.15)
         .attr('stroke', color)
-        .attr('stroke-opacity', 0.9);
+        .attr('stroke-opacity', isTask ? 0.7 : 0.9)
+        .attr('stroke-dasharray', isTask ? '3 2' : null);
 
       // Rect for files in code mode
       el.select('.node-rect')
@@ -739,7 +754,11 @@ export default function NexusGraph({
 
       // Text 1 - icon letter (adjust position/size dynamically)
       const truncatedLabel = d.label.length > 18 ? d.label.substring(0, 18) + '…' : d.label;
-      const iconText = isIssue ? '!' : getNodeTypeLetter(d.type);
+      let iconText = isIssue ? '!' : getNodeTypeLetter(d.type);
+      if (isTask) {
+        const match = d.label.match(/Day (\d+)/);
+        iconText = match ? match[1] : 'T';
+      }
 
       if (isCodeMode && isFile) {
         el.select('.node-icon')
@@ -763,16 +782,16 @@ export default function NexusGraph({
         el.select('.node-icon')
           .attr('x', 0)
           .attr('y', 0)
-          .attr('font-size', isIssue ? '10px' : '13px')
-          .attr('fill', isIssue ? '#ffffff' : color)
+          .attr('font-size', isIssue ? '10px' : (isTask ? '10px' : '13px'))
+          .attr('fill', (isIssue || isTask) ? '#ffffff' : color)
           .attr('text-anchor', 'middle')
           .attr('dominant-baseline', 'central')
           .text(iconText);
 
         el.select('.node-label')
           .attr('x', 0)
-          .attr('y', isIssue ? 24 : 36)
-          .attr('font-size', '10px')
+          .attr('y', isIssue ? 24 : (isTask ? 28 : 36))
+          .attr('font-size', isTask ? '9px' : '10px')
           .attr('fill', 'rgba(255, 255, 255, 0.65)')
           .attr('text-anchor', 'middle')
           .attr('dominant-baseline', 'alphabetic')
@@ -793,6 +812,7 @@ export default function NexusGraph({
       // Selection ring: only for circles
       el.select('.selection-ring')
         .style('display', (isCodeMode && isFile) ? 'none' : 'block')
+        .attr('r', isTask ? 20 : 46)
         .attr('stroke', 'rgba(255,255,255,0.6)')
         .attr('stroke-opacity', isSelected ? 1 : 0)
         .style('transition', 'stroke-opacity 150ms');

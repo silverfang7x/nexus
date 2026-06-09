@@ -14,7 +14,8 @@ export type NodeType =
   | 'fix'          // code: a proposed solution
   | 'feature'      // plan: a planned feature
   | 'risk'         // plan: a project risk
-  | 'milestone';   // plan: a timeline milestone
+  | 'milestone'    // plan: a timeline milestone
+  | 'task';        // task decomposer: daily milestone task
 
 export type EdgeType = 'supports' | 'rebuts' | 'verifies' | 'contradicts' | 'depends' | 'fixes' | 'links';
 
@@ -29,6 +30,7 @@ export interface GraphNode {
   x?: number;
   y?: number;
   color?: string;
+  parentId?: string;
 }
 
 export interface GraphEdge {

@@ -199,6 +199,20 @@ export function useAgentStream() {
     }
   }, []);
 
+  const addNode = useCallback((node: GraphNode) => {
+    setNodes((prev) => {
+      const filtered = prev.filter(n => n.id !== node.id);
+      return [...filtered, node];
+    });
+  }, []);
+
+  const addEdge = useCallback((edge: GraphEdge) => {
+    setEdges((prev) => {
+      const filtered = prev.filter(e => e.id !== edge.id);
+      return [...filtered, edge];
+    });
+  }, []);
+
   return {
     query,
     nodes,
@@ -211,5 +225,7 @@ export function useAgentStream() {
     agentThoughts,
     startSession,
     restoreSession,
+    addNode,
+    addEdge,
   };
 }

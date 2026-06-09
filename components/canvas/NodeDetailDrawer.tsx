@@ -36,6 +36,7 @@ const NODE_TYPE_LABELS: Record<NodeType, string> = {
   feature: 'FEATURE',
   risk: 'RISK',
   milestone: 'MILESTONE',
+  task: 'TASK',
 };
 
 function getConnectedNodes(nodeId: string, allNodes: GraphNode[], allEdges: GraphEdge[]): GraphNode[] {

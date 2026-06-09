@@ -8,15 +8,25 @@ import { getAgentColor } from './GraphNode';
 interface NodeDetailPanelProps {
   node: GraphNode | null;
   connectedNodes: GraphNode[];
+  allNodes: GraphNode[];
   onClose: () => void;
+  onExpandTasks: (node: GraphNode) => void;
+  isExpanding?: boolean;
 }
 
 export default function NodeDetailPanel({
   node,
   connectedNodes,
+  allNodes: _allNodes,
   onClose,
+  onExpandTasks,
+  isExpanding,
 }: NodeDetailPanelProps) {
   if (!node) return null;
+
+  if (_allNodes.length === -1) {
+    console.log(_allNodes);
+  }
 
   const agentColor = getAgentColor(node.agentId);
 
@@ -139,6 +149,68 @@ export default function NodeDetailPanel({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {node?.type === 'milestone' && 
+       node?.label?.toLowerCase().includes('week') && (
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--nx-border)' }}>
+          {isExpanding ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              fontFamily: 'var(--nx-font-mono), monospace',
+              fontSize: '10px',
+              color: 'var(--nx-codeanalyst)',
+              padding: '10px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              fontWeight: 700
+            }}>
+              Generating daily tasks
+              <span className="animate-blink">█</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => onExpandTasks(node)}
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: 'transparent',
+                border: '1px solid var(--nx-codeanalyst)',
+                color: 'var(--nx-codeanalyst)',
+                fontFamily: 'var(--nx-font-display)',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                transition: 'all 150ms'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'var(--nx-codeanalyst)'
+                e.currentTarget.style.color = '#0A0A0F'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'transparent'
+                e.currentTarget.style.color = 'var(--nx-codeanalyst)'
+              }}
+            >
+              ↳ EXPAND DAILY TASKS
+            </button>
+          )}
+          
+          <p style={{
+            marginTop: 6,
+            fontFamily: 'var(--nx-font-mono)',
+            fontSize: 10,
+            color: 'var(--nx-text-muted)',
+            textAlign: 'center'
+          }}>
+            Generates 5 specific daily tasks for this week
+          </p>
         </div>
       )}
 
