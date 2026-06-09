@@ -7,7 +7,7 @@ import AgentPanel from '@/components/agents/AgentPanel';
 import ModeSelector from '@/components/ui/ModeSelector';
 import VerdictPanel from '@/components/output/VerdictPanel';
 import ExportButton from '@/components/output/ExportButton';
-import SessionBar from '@/components/ui/SessionBar';
+import SessionsDrawer from '@/components/ui/SessionsDrawer';
 import { saveSession, getSessions, NexusSession } from '@/lib/sessionStorage';
 import { useAgentStream } from '@/hooks/useAgentStream';
 import { useGraph } from '@/hooks/useGraph';
@@ -16,6 +16,16 @@ import { AgentId, NexusMode, GraphNode, AgentEvent, AllModeStates, createBlankMo
 import { getAgentColor } from '@/components/canvas/GraphNode';
 import NodeDetailPanel from '@/components/canvas/NodeDetailPanel';
 import { CanvasLoader } from '@/components/canvas/CanvasLoader';
+
+function getModeColor(mode: NexusMode): string {
+  switch (mode) {
+    case 'debate': return '#E24B4A';
+    case 'research': return '#1D9E75';
+    case 'code': return '#378ADD';
+    case 'plan': return 'var(--nx-plan-color, #DAA520)';
+    default: return 'rgba(255,255,255,0.4)';
+  }
+}
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -404,6 +414,13 @@ export default function Dashboard() {
   });
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [graphScale, setGraphScale] = useState(1);
+  const [sessionsDrawerOpen, setSessionsDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (sessionsDrawerOpen) {
+      setSessions(getSessions());
+    }
+  }, [sessionsDrawerOpen]);
 
   const startTimestampRef = useRef<Record<NexusMode, number>>({
     debate: 0,
@@ -752,21 +769,11 @@ export default function Dashboard() {
       className="nexus-layout"
       style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '280px 1fr 360px',
-        gridTemplateRows: isMobile ? 'auto 1fr' : '36px 1fr',
+        gridTemplateRows: '1fr',
         height: '100vh',
         overflow: 'hidden',
       }}
     >
-      <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
-        <SessionBar
-          sessions={sessions}
-          activeSessionId={activeSessionId}
-          onRestoreSession={handleRestoreSession}
-          currentMode={activeMode}
-          isRunning={status === 'running'}
-        />
-      </div>
       {/* ── global style tag ───────────────────────────────────────────── */}
       <style>{`
         /* thin custom scrollbar shared across panels */
@@ -785,98 +792,191 @@ export default function Dashboard() {
           50%     { transform: scale(1.3); opacity: 1;   }
         }
         .agent-dot-active { animation: agent-pulse 1.2s ease-in-out infinite; }
+
+        /* SESSIONS button custom styling */
+        .sessions-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-family: var(--nx-font-mono), monospace;
+          font-size: 10px;
+          text-transform: uppercase;
+          border: 1px solid var(--nx-border);
+          background: transparent;
+          padding: 5px 10px;
+          color: var(--nx-text-primary);
+          cursor: pointer;
+          transition: border-color 150ms, background 150ms;
+        }
+        .sessions-btn:hover {
+          border-color: var(--nx-border-hover);
+          background: var(--nx-surface);
+        }
       `}</style>
 
       {/* ── desktop 3-column grid ──────────────────────────────────────── */}
       <main
         data-mode={activeMode}
         style={{
-          gridColumn: isMobile ? 'auto' : '1 / -1',
+          gridColumn: '1 / -1',
           display: 'grid',
           gridTemplateColumns: isMobile ? '1fr' : '280px 1fr 360px',
-          gridTemplateRows: isMobile ? '40px 1fr 32px' : '40px 1fr 32px',
+          gridTemplateRows: isMobile ? '40px 1fr 32px' : '1fr 32px',
           gridTemplateAreas: isMobile
             ? `"topbar" "canvas" "statusbar"`
-            : `"topbar topbar topbar" "sidebar canvas rightpanel" "statusbar statusbar statusbar"`,
+            : `"sidebar canvas rightpanel" "statusbar statusbar statusbar"`,
           width: '100%',
           height: '100%',
           overflow: 'hidden',
           backgroundColor: 'var(--nx-bg)',
         }}
       >
-        {/* ── TOP BAR ─────────────────────────────────────────────────── */}
-        <div
-          style={{
-            gridArea: 'topbar',
-            backgroundColor: 'var(--nx-bg-elevated)',
-            borderBottom: '1px solid var(--nx-border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 16px',
-            zIndex: 30,
-          }}
-        >
-          {/* Logo + live indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span
-              style={{
-                fontFamily: 'var(--nx-font-display), sans-serif',
-                fontWeight: 700,
-                fontSize: 13,
-                letterSpacing: '0.2em',
-                color: '#fff',
-                userSelect: 'none',
-              }}
-            >
-              NEXUS
-            </span>
-            <span
-              className="topbar-dot"
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: '#1D9E75',
-                boxShadow: '0 0 6px #1D9E75',
-                display: 'inline-block',
-              }}
-            />
-          </div>
+        {/* ── TOP BAR (mobile only) ─────────────────────────────────────── */}
+        {isMobile && (
+          <div
+            style={{
+              gridArea: 'topbar',
+              backgroundColor: 'var(--nx-bg-elevated)',
+              borderBottom: '1px solid var(--nx-border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0 16px',
+              zIndex: 30,
+            }}
+          >
+            {/* Logo + live indicator */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span
+                style={{
+                  fontFamily: 'var(--nx-font-display), sans-serif',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  letterSpacing: '0.2em',
+                  color: '#fff',
+                  userSelect: 'none',
+                }}
+              >
+                NEXUS
+              </span>
+              <span
+                className="topbar-dot"
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: '#1D9E75',
+                  boxShadow: '0 0 6px #1D9E75',
+                  display: 'inline-block',
+                }}
+              />
+            </div>
 
-          {/* Right controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {DemoButton}
-            <span
-              style={{
-                fontFamily: 'var(--nx-font-mono), monospace',
-                fontSize: 10,
-                color: 'var(--nx-text-muted)',
-              }}
-            >
-              {activeSessionId ? `Session ${activeSessionId}` : `Session ${String(sessionNum).padStart(3, '0')}`}
-            </span>
+            {/* Right controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {DemoButton}
+              <button
+                type="button"
+                onClick={() => setSessionsDrawerOpen(true)}
+                className="sessions-btn"
+                style={{ border: 'none', padding: '4px 8px' }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ width: '10px', height: '1.2px', background: 'var(--nx-text-muted)' }} />
+                  <div style={{ width: '10px', height: '1.2px', background: 'var(--nx-text-muted)' }} />
+                  <div style={{ width: '10px', height: '1.2px', background: 'var(--nx-text-muted)' }} />
+                </div>
+                <span>SESSIONS</span>
+                {sessions.length > 0 && (
+                  <div
+                    style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      background: 'var(--nx-synthesizer)',
+                      color: 'white',
+                      fontSize: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 'bold',
+                      marginLeft: '2px',
+                    }}
+                  >
+                    {sessions.length}
+                  </div>
+                )}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ── LEFT SIDEBAR (desktop only) ─────────────────────────────── */}
         {!isMobile && (
           <div
-            className="nx-thin-scroll left-agent-column"
             style={{
               gridArea: 'sidebar',
               backgroundColor: 'var(--nx-bg-elevated)',
               borderRight: '1px solid var(--nx-border)',
-              padding: '12px',
               zIndex: 20,
               height: '100%',
-              overflowY: 'auto',
-              overflowX: 'hidden',
               display: 'flex',
               flexDirection: 'column',
+              overflow: 'hidden',
             }}
           >
-            {renderedAgentPanels}
+            {/* NEXUS WORDMARK HEADER */}
+            <div
+              style={{
+                height: 44,
+                minHeight: 44,
+                borderBottom: '1px solid var(--nx-border)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '0 16px',
+                flexShrink: 0,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'var(--nx-font-display), sans-serif',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  letterSpacing: '0.15em',
+                  color: '#fff',
+                  userSelect: 'none',
+                }}
+              >
+                NEXUS
+              </span>
+              <span
+                className="topbar-dot"
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: '#1D9E75',
+                  boxShadow: '0 0 6px #1D9E75',
+                  display: 'inline-block',
+                }}
+              />
+            </div>
+
+            {/* SCROLLING AGENT PANELS */}
+            <div
+              className="nx-thin-scroll left-agent-column"
+              style={{
+                flex: 1,
+                padding: '12px',
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              {renderedAgentPanels}
+            </div>
           </div>
         )}
 
@@ -977,6 +1077,105 @@ export default function Dashboard() {
               zIndex: 20,
             }}
           >
+            {/* THIN TOP BAR HEADER */}
+            <div
+              style={{
+                height: 44,
+                minHeight: 44,
+                borderBottom: '1px solid var(--nx-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0 16px',
+                flexShrink: 0,
+              }}
+            >
+              {/* LEFT: nothing */}
+              <div />
+
+              {/* RIGHT: Two items side by side */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                {/* 1. Mode + Status Indicator */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    fontFamily: 'var(--nx-font-mono), monospace',
+                    fontSize: 10,
+                  }}
+                >
+                  {/* Mode */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: getModeColor(activeMode),
+                        display: 'inline-block',
+                      }}
+                    />
+                    <span style={{ color: 'var(--nx-text-muted)', textTransform: 'uppercase' }}>
+                      {activeMode}
+                    </span>
+                  </div>
+
+                  {/* Status */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span
+                      className={status === 'running' ? 'session-pulsing' : undefined}
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: status === 'running' ? '#1D9E75' : '#888780',
+                        boxShadow: status === 'running' ? '0 0 6px #1D9E75' : 'none',
+                        display: 'inline-block',
+                      }}
+                    />
+                    <span style={{ color: status === 'running' ? '#ffffff' : 'var(--nx-text-muted)', fontWeight: status === 'running' ? 600 : 400 }}>
+                      {status === 'running' ? 'LIVE' : 'READY'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 2. SESSIONS button */}
+                <button
+                  type="button"
+                  onClick={() => setSessionsDrawerOpen(true)}
+                  className="sessions-btn"
+                >
+                  {/* 3-line Stack Icon */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5px' }}>
+                    <div style={{ width: '12px', height: '1.5px', background: 'var(--nx-text-muted)' }} />
+                    <div style={{ width: '12px', height: '1.5px', background: 'var(--nx-text-muted)' }} />
+                    <div style={{ width: '12px', height: '1.5px', background: 'var(--nx-text-muted)' }} />
+                  </div>
+                  <span>SESSIONS</span>
+                  {sessions.length > 0 && (
+                    <div
+                      style={{
+                        width: '14px',
+                        height: '14px',
+                        borderRadius: '50%',
+                        background: 'var(--nx-synthesizer)',
+                        color: 'white',
+                        fontSize: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 'bold',
+                        marginLeft: '2px',
+                      }}
+                    >
+                      {sessions.length}
+                    </div>
+                  )}
+                </button>
+              </div>
+            </div>
+
             <div style={{ padding: 16, flexShrink: 0 }}>
               <ModeSelector
                 activeMode={activeMode}
@@ -1204,6 +1403,15 @@ export default function Dashboard() {
           />
         )}
       </AnimatePresence>
+
+      <SessionsDrawer
+        isOpen={sessionsDrawerOpen}
+        onClose={() => setSessionsDrawerOpen(false)}
+        sessions={sessions}
+        onRestoreSession={handleRestoreSession}
+        currentSessionId={activeSessionId}
+        onClearAll={() => setSessions([])}
+      />
     </div>
   );
 }
