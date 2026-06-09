@@ -792,12 +792,18 @@ export default function Dashboard() {
 
   return (
     <div
-      className="nexus-layout"
+      className="nexus-layout nexus-root"
       style={{
         display: 'grid',
-        gridTemplateRows: '1fr',
+        gridTemplateColumns: isMobile ? '1fr' : '280px 1fr 360px',
         height: '100vh',
+        maxHeight: '100vh',
         overflow: 'hidden',
+        position: 'fixed',    /* CRITICAL — fixed to viewport */
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0
       }}
     >
       {/* ── global style tag ───────────────────────────────────────────── */}
@@ -1101,6 +1107,9 @@ export default function Dashboard() {
               display: 'flex',
               flexDirection: 'column',
               zIndex: 20,
+              height: '100vh',
+              maxHeight: '100vh',
+              overflow: 'hidden'
             }}
           >
             {/* THIN TOP BAR HEADER */}
@@ -1238,7 +1247,16 @@ export default function Dashboard() {
                 flexShrink: 0,
               }}
             />
-            <div className="output-scroll-panel" style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}>
+            <div
+              className="output-scroll-panel"
+              style={{
+                flex: '1 1 0',
+                minHeight: 0,
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                WebkitOverflowScrolling: 'touch'
+              }}
+            >
               <VerdictPanel 
                 output={verdict} 
                 mode={activeMode}
@@ -1258,7 +1276,8 @@ export default function Dashboard() {
               gap: 8,
               padding: '10px 16px',
               borderTop: '1px solid var(--nx-border)',
-              background: 'var(--nx-surface)',
+              backgroundColor: 'var(--nx-surface)',
+              zIndex: 2,
               opacity: currentState.structuredOutput ? 1 : 0.4,
               pointerEvents: currentState.structuredOutput ? 'auto' : 'none',
             }}>
