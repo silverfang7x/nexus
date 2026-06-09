@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { NexusMode, SavedSession } from '@/types/nexus';
+import { SavedSession } from '@/types/nexus';
 
 interface SessionsDrawerProps {
   isOpen: boolean;
@@ -13,15 +13,7 @@ interface SessionsDrawerProps {
   onNewSession: () => void;
 }
 
-function getModeColor(mode: NexusMode): string {
-  switch (mode) {
-    case 'debate': return '#E24B4A';
-    case 'research': return '#1D9E75';
-    case 'code': return '#378ADD';
-    case 'plan': return 'var(--nx-plan-color, #DAA520)';
-    default: return 'rgba(255,255,255,0.4)';
-  }
-}
+
 
 function getRelativeTime(timestamp: number): string {
   const diff = Date.now() - timestamp;
@@ -52,6 +44,7 @@ export default function SessionsDrawer({
       const saved = JSON.parse(
         localStorage.getItem('nx-sessions') || '[]'
       );
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSessions(saved);
     } catch {
       setSessions([]);
@@ -65,6 +58,7 @@ export default function SessionsDrawer({
         const saved = JSON.parse(
           localStorage.getItem('nx-sessions') || '[]'
         );
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSessions(saved);
       } catch {}
     }
@@ -259,7 +253,7 @@ export default function SessionsDrawer({
                 </div>
               ) : (
                 <div style={{ display: 'grid', gap: 6 }}>
-                  {sessions.map((session, i) => (
+                  {sessions.map((session) => (
                     <div
                       key={session.id}
                       onClick={() => {
@@ -269,7 +263,9 @@ export default function SessionsDrawer({
                       style={{
                         padding: '10px 12px',
                         background: 'var(--nx-bg-panel, var(--nx-surface))',
-                        border: '1px solid var(--nx-border)',
+                        border: session.id === currentSessionId 
+                          ? '1px solid var(--nx-synthesizer)' 
+                          : '1px solid var(--nx-border)',
                         cursor: 'pointer',
                         transition: 'border-color 150ms'
                       }}
@@ -279,7 +275,9 @@ export default function SessionsDrawer({
                       }
                       onMouseLeave={e =>
                         e.currentTarget.style.borderColor = 
-                          'var(--nx-border)'
+                          session.id === currentSessionId 
+                            ? 'var(--nx-synthesizer)' 
+                            : 'var(--nx-border)'
                       }
                     >
                       {/* Mode badge + time */}

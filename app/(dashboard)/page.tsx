@@ -408,6 +408,7 @@ export default function Dashboard() {
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('nx-sessions') || '[]');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSessions(saved);
     } catch {}
     sessionStartRef.current = Date.now();
@@ -507,6 +508,7 @@ export default function Dashboard() {
     if (status === 'complete') {
       try {
         const saved = JSON.parse(localStorage.getItem('nx-sessions') || '[]');
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSessions(saved);
       } catch {}
     }

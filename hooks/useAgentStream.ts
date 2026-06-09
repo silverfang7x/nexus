@@ -314,7 +314,7 @@ export function useAgentStream(
       nodeCount: nodes.length,
       edgeCount: edges.length,
       timestamp: Date.now(),
-      tldr: extractTLDR(verdict, currentMode)
+      tldr: extractTLDR(verdict)
     };
     
     try {
@@ -401,7 +401,7 @@ export function useAgentStream(
   };
 }
 
-function extractTLDR(verdict: string, mode: NexusMode): string {
+function extractTLDR(verdict: string): string {
   if (!verdict) return 'No summary';
   try {
     const parsed = JSON.parse(
