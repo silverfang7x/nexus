@@ -42,6 +42,19 @@ export interface GraphEdge {
   label?: string;
 }
 
+export interface SavedSession {
+  id: string;
+  query: string;
+  mode: NexusMode;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  verdict: string;
+  nodeCount: number;
+  edgeCount: number;
+  timestamp: number;
+  tldr: string;
+}
+
 export interface AgentEvent {
   agentId: AgentId;
   type: 'thinking' | 'node_created' | 'edge_created' | 'message' | 'done' | 'error' | 'preprocessed' | 'streaming' | 'complete';

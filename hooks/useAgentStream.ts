@@ -295,24 +295,85 @@ export function useAgentStream(
     });
   }, [onStateChange]);
 
+  const lastQuery = currentState.query;
+  const nodes = currentState.nodes;
+  const edges = currentState.edges;
+  const verdict = (currentState.structuredOutput as string) || '';
+  const currentMode = mode;
+
+  const saveSession = useCallback(() => {
+    if (nodes.length === 0) return;
+    
+    const session = {
+      id: 'session-' + Date.now(),
+      query: lastQuery,
+      mode: currentMode,
+      nodes: nodes,
+      edges: edges,
+      verdict: verdict,
+      nodeCount: nodes.length,
+      edgeCount: edges.length,
+      timestamp: Date.now(),
+      tldr: extractTLDR(verdict, currentMode)
+    };
+    
+    try {
+      const existing = JSON.parse(
+        localStorage.getItem('nx-sessions') || '[]'
+      );
+      const updated = [session, ...existing].slice(0, 10);
+      localStorage.setItem('nx-sessions', JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Session save failed:', e);
+    }
+  }, [nodes, edges, verdict, lastQuery, currentMode]);
+
+  const restoreSession = useCallback((data: {
+    nodes: GraphNode[];
+    edges: GraphEdge[];
+    verdict: string;
+    mode: NexusMode;
+    query: string;
+  }) => {
+    onStateChange(() => ({
+      query: data.query,
+      nodes: data.nodes,
+      edges: data.edges,
+      structuredOutput: data.verdict,
+      agentThoughts: {},
+      agentStatuses: {},
+      isRunning: false,
+      hasRun: true
+    }));
+    sessionIndexRef.current = 0;
+    setProcessedQuery(null);
+    setShowContinuation(true);
+  }, [onStateChange]);
+
   // Compute status
-  let computedStatus: SessionStatus = 'idle';
+  let status: SessionStatus = 'idle';
   if (currentState.isRunning) {
-    computedStatus = 'running';
+    status = 'running';
   } else if (currentState.hasRun) {
     if (showContinuation) {
-      computedStatus = 'ready_for_continuation';
+      status = 'ready_for_continuation';
     } else {
-      computedStatus = 'complete';
+      status = 'complete';
     }
   } else {
     const hasError = Object.values(currentState.agentStatuses).some(s => s === 'error');
     if (hasError) {
-      computedStatus = 'error';
+      status = 'error';
     } else {
-      computedStatus = 'idle';
+      status = 'idle';
     }
   }
+
+  useEffect(() => {
+    if (status === 'complete') {
+      saveSession();
+    }
+  }, [status, saveSession]);
 
   // Compute activeAgents list
   const activeAgents = Object.entries(currentState.agentStatuses)
@@ -323,7 +384,7 @@ export function useAgentStream(
     query: currentState.query,
     nodes: currentState.nodes,
     edges: currentState.edges,
-    status: computedStatus,
+    status,
     verdict: currentState.structuredOutput as string,
     activeAgents,
     processedQuery,
@@ -334,6 +395,20 @@ export function useAgentStream(
     clearStream,
     addNode,
     addEdge,
+    restoreSession,
+    saveSession,
     isContinuationReady: showContinuation || (!currentState.isRunning && currentState.hasRun),
   };
+}
+
+function extractTLDR(verdict: string, mode: NexusMode): string {
+  if (!verdict) return 'No summary';
+  try {
+    const parsed = JSON.parse(
+      verdict.replace(/^```json\s*/i, '').replace(/```\s*$/i, '')
+    );
+    if (parsed.tldr) return parsed.tldr;
+  } catch {}
+  // For non-JSON verdicts (debate/plan), first sentence
+  return verdict.split('.')[0].slice(0, 60) + '...';
 }

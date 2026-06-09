@@ -8,11 +8,10 @@ import ModeSelector from '@/components/ui/ModeSelector';
 import VerdictPanel from '@/components/output/VerdictPanel';
 import ExportButton from '@/components/output/ExportButton';
 import SessionsDrawer from '@/components/ui/SessionsDrawer';
-import { saveSession, getSessions } from '@/lib/sessionStorage';
 import { useAgentStream } from '@/hooks/useAgentStream';
 import { useGraph } from '@/hooks/useGraph';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { AgentId, NexusMode, GraphNode, AgentEvent, AllModeStates, createBlankModeState, ModeState, NexusSession } from '@/types/nexus';
+import { AgentId, NexusMode, GraphNode, AgentEvent, AllModeStates, createBlankModeState, ModeState, SavedSession } from '@/types/nexus';
 import { getAgentColor } from '@/components/canvas/GraphNode';
 import NodeDetailPanel from '@/components/canvas/NodeDetailPanel';
 import { CanvasLoader } from '@/components/canvas/CanvasLoader';
@@ -398,7 +397,7 @@ export default function Dashboard() {
   };
 
   // --- Session History State & Refs ---
-  const [sessions, setSessions] = useState<NexusSession[]>([]);
+  const [sessions, setSessions] = useState<SavedSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [graphScale, setGraphScale] = useState(1);
   const [sessionsDrawerOpen, setSessionsDrawerOpen] = useState(false);
@@ -407,24 +406,22 @@ export default function Dashboard() {
   const sessionStartRef = useRef<number>(0);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSessions(getSessions());
+    try {
+      const saved = JSON.parse(localStorage.getItem('nx-sessions') || '[]');
+      setSessions(saved);
+    } catch {}
     sessionStartRef.current = Date.now();
   }, []);
 
   const handleOpenSessionsDrawer = () => {
-    setSessions(getSessions());
+    try {
+      const saved = JSON.parse(localStorage.getItem('nx-sessions') || '[]');
+      setSessions(saved);
+    } catch {}
     setSessionsDrawerOpen(true);
   };
 
   const handleNewSession = () => {
-    const anyModeHasRun = Object.values(modeStates).some(state => state.hasRun);
-    if (anyModeHasRun) {
-      saveSession(modeStates, activeMode, sessionStartRef.current);
-      setSessions(getSessions());
-      setActiveSessionId('001');
-    }
-
     setModeStates({
       debate: createBlankModeState(),
       research: createBlankModeState(),
@@ -479,52 +476,23 @@ export default function Dashboard() {
   }, [activeMode, status]);
 
   // Handle restoring a session
-  const handleRestoreSession = (session: NexusSession) => {
-    const newModeStates = {
-      debate: createBlankModeState(),
-      research: createBlankModeState(),
-      code: createBlankModeState(),
-      plan: createBlankModeState()
-    };
+  const handleRestoreSession = (session: SavedSession) => {
+    setSessionsDrawerOpen(false);
+    setActiveMode(session.mode);
 
-    const modes: NexusMode[] = ['debate', 'research', 'code', 'plan'];
-    modes.forEach(mode => {
-      const data = session.modes[mode];
-      if (data) {
-        newModeStates[mode] = {
-          ...createBlankModeState(),
-          query: data.query,
-          nodes: data.nodes,
-          edges: data.edges,
-          structuredOutput: data.structuredOutput,
-          hasRun: true,
-          isRunning: false
-        };
-      }
-    });
-
-    setModeStates(newModeStates);
-    setActiveMode(session.primaryMode);
-
-    const streams = {
+    const targetStream = {
       debate: debateStream,
       research: researchStream,
       code: codeStream,
       plan: planStream
-    };
-    modes.forEach(mode => {
-      const data = session.modes[mode];
-      if (data) {
-        streams[mode].restoreStream({
-          query: data.query,
-          nodes: data.nodes,
-          edges: data.edges,
-          structuredOutput: data.structuredOutput,
-          mode
-        });
-      } else {
-        streams[mode].clearStream();
-      }
+    }[session.mode];
+
+    targetStream.restoreSession({
+      nodes: session.nodes,
+      edges: session.edges,
+      verdict: session.verdict,
+      mode: session.mode,
+      query: session.query
     });
 
     setActiveSessionId(session.id);
@@ -534,6 +502,15 @@ export default function Dashboard() {
     setGraphScale(0.97);
     setTimeout(() => setGraphScale(1), 150);
   };
+
+  useEffect(() => {
+    if (status === 'complete') {
+      try {
+        const saved = JSON.parse(localStorage.getItem('nx-sessions') || '[]');
+        setSessions(saved);
+      } catch {}
+    }
+  }, [status]);
 
   const handleModeChange = (newMode: NexusMode) => {
     setActiveMode(newMode);
@@ -1455,7 +1432,6 @@ export default function Dashboard() {
       <SessionsDrawer
         isOpen={sessionsDrawerOpen}
         onClose={() => setSessionsDrawerOpen(false)}
-        sessions={sessions}
         onRestoreSession={handleRestoreSession}
         currentSessionId={activeSessionId}
         onClearAll={() => setSessions([])}

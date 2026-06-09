@@ -2,14 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { clearSessions } from '@/lib/sessionStorage';
-import { NexusMode, NexusSession } from '@/types/nexus';
+import { NexusMode, SavedSession } from '@/types/nexus';
 
 interface SessionsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  sessions: NexusSession[];
-  onRestoreSession: (session: NexusSession) => void;
+  onRestoreSession: (session: SavedSession) => void;
   currentSessionId: string | null;
   onClearAll: () => void;
   onNewSession: () => void;
@@ -25,35 +23,21 @@ function getModeColor(mode: NexusMode): string {
   }
 }
 
-function formatRelativeTime(timestamp: number): string {
-  const diffMs = Date.now() - timestamp;
-  const diffSecs = Math.floor(diffMs / 1000);
-  if (diffSecs < 60) return 'just now';
-  const diffMins = Math.floor(diffSecs / 60);
-  if (diffMins < 60) return `${diffMins} minutes ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours} hours ago`;
+function getRelativeTime(timestamp: number): string {
+  const diff = Date.now() - timestamp;
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  if (hours < 24) return hours + 'h ago';
   return new Date(timestamp).toLocaleDateString();
 }
 
 const MONO: React.CSSProperties = { fontFamily: 'var(--nx-font-mono), monospace' };
 
-function isValidSession(session: unknown): session is NexusSession {
-  if (typeof session !== 'object' || session === null) return false;
-  const s = session as Record<string, unknown>;
-  return (
-    typeof s.id === 'string' &&
-    typeof s.timestamp === 'number' &&
-    s.modes !== undefined &&
-    typeof s.modes === 'object' &&
-    s.modes !== null
-  );
-}
-
 export default function SessionsDrawer({
   isOpen,
   onClose,
-  sessions,
   onRestoreSession,
   currentSessionId,
   onClearAll,
@@ -61,8 +45,30 @@ export default function SessionsDrawer({
 }: SessionsDrawerProps) {
   const [confirmClear, setConfirmClear] = useState(false);
   const [newSessionHovered, setNewSessionHovered] = useState(false);
+  const [sessions, setSessions] = useState<SavedSession[]>([]);
 
-  const validSessions = sessions.filter(isValidSession);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem('nx-sessions') || '[]'
+      );
+      setSessions(saved);
+    } catch {
+      setSessions([]);
+    }
+  }, []);
+
+  // Also refresh when drawer opens:
+  useEffect(() => {
+    if (isOpen) {
+      try {
+        const saved = JSON.parse(
+          localStorage.getItem('nx-sessions') || '[]'
+        );
+        setSessions(saved);
+      } catch {}
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (confirmClear) {
@@ -73,7 +79,12 @@ export default function SessionsDrawer({
 
   const handleClearAll = () => {
     if (confirmClear) {
-      clearSessions();
+      try {
+        localStorage.removeItem('nx-sessions');
+      } catch (e) {
+        console.warn('Clear sessions failed:', e);
+      }
+      setSessions([]);
       onClearAll();
       onClose();
       setConfirmClear(false);
@@ -230,223 +241,106 @@ export default function SessionsDrawer({
                 HISTORY
               </div>
 
-              {validSessions.length === 0 ? (
-                /* EMPTY STATE */
-                <div
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    textAlign: 'center',
-                  }}
-                >
-                  {/* CSS Clock Icon */}
-                  <div
-                    style={{
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '50%',
-                      border: '1.5px solid var(--nx-text-muted)',
-                      position: 'relative',
-                      marginBottom: '12px',
-                      opacity: 0.5,
-                    }}
-                  >
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        width: '1px',
-                        height: '6px',
-                        background: 'var(--nx-text-muted)',
-                        transform: 'translate(-50%, -100%)',
-                      }}
-                    />
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        width: '5px',
-                        height: '1.5px',
-                        background: 'var(--nx-text-muted)',
-                        transform: 'translate(0, -50%)',
-                      }}
-                    />
-                  </div>
-                  <p
-                    style={{
-                      ...MONO,
-                      fontSize: '11px',
-                      color: 'var(--nx-text-muted)',
-                      fontWeight: 600,
-                      marginBottom: '4px',
-                    }}
-                  >
+              {sessions.length === 0 ? (
+                <div style={{ 
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                  flex: 1, gap: 8, opacity: 0.5
+                }}>
+                  <span style={{ fontSize: 20 }}>◎</span>
+                  <p style={{
+                    fontFamily: 'var(--nx-font-mono)',
+                    fontSize: 11, color: 'var(--nx-text-muted)',
+                    textAlign: 'center'
+                  }}>
                     No sessions yet
-                  </p>
-                  <p
-                    style={{
-                      ...MONO,
-                      fontSize: '10px',
-                      color: 'var(--nx-text-muted)',
-                      opacity: 0.7,
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    Run a query to create your first session
+                    <br/>Run a query to create your first session
                   </p>
                 </div>
               ) : (
-                /* SESSIONS LIST */
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {validSessions.map((session) => {
-                    const isActive = session.id === currentSessionId;
-                    const primaryModeColor = getModeColor(session.primaryMode);
-
-                    const modesList: NexusMode[] = ['debate', 'research', 'code', 'plan'];
-                    const nonNullModes = modesList.filter(
-                      (m) => session.modes?.[m] != null
-                    );
-                    const modeCount = nonNullModes.length;
-                    const totalNodes = nonNullModes.reduce((sum, m) => sum + (session.modes?.[m]?.nodes?.length ?? 0), 0);
-
-                    return (
-                      <div
-                        key={session.id}
-                        onClick={() => {
-                          onRestoreSession(session);
-                          onClose();
-                        }}
-                        style={{
-                          background: 'var(--nx-surface)',
-                          border: '1px solid var(--nx-border)',
-                          borderLeft: `3px solid ${primaryModeColor}`,
-                          padding: '12px 14px',
-                          marginBottom: '8px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '6px',
-                          transition: 'all 150ms ease',
-                          borderColor: isActive ? 'var(--nx-border-active)' : 'var(--nx-border)',
-                          boxShadow: isActive ? `inset 0 0 8px rgba(255,255,255,0.02)` : 'none',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = 'var(--nx-border-hover)';
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = isActive ? 'var(--nx-border-active)' : 'var(--nx-border)';
-                          e.currentTarget.style.background = 'var(--nx-surface)';
-                        }}
-                      >
-                        {/* Top row label + badge */}
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <span
-                            style={{
-                              ...MONO,
-                              fontSize: '9px',
-                              color: 'var(--nx-text-muted)',
-                              fontWeight: 600,
-                            }}
-                          >
-                            SESSION {session.id}
-                          </span>
-                          {/* Mode Badge */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span
-                              style={{
-                                width: '5px',
-                                height: '5px',
-                                borderRadius: '50%',
-                                background: primaryModeColor,
-                                display: 'inline-block',
-                              }}
-                            />
-                            <span
-                              style={{
-                                ...MONO,
-                                fontSize: '8px',
-                                color: 'var(--nx-text-muted)',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.05em',
-                              }}
-                            >
-                              {session.primaryMode}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Query text */}
-                        <p
-                          style={{
-                            ...MONO,
-                            fontSize: '12px',
-                            color: 'var(--nx-text-primary)',
-                            margin: 0,
-                            lineHeight: 1.4,
-                            wordBreak: 'break-all',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {session.primaryQuery}
-                        </p>
-
-                        {/* Mode dots row */}
-                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', margin: '2px 0' }}>
-                          {modesList.map((mode) => {
-                            const hasData = session.modes?.[mode] != null;
-                            const modeColor = getModeColor(mode);
-                            return (
-                              <span
-                                key={mode}
-                                style={{
-                                  width: '6px',
-                                  height: '6px',
-                                  borderRadius: '50%',
-                                  backgroundColor: hasData ? modeColor : 'transparent',
-                                  border: hasData ? `1px solid ${modeColor}` : '1px solid var(--nx-border)',
-                                  boxSizing: 'border-box',
-                                  display: 'inline-block',
-                                }}
-                                title={`${mode}: ${hasData ? 'explored' : 'not explored'}`}
-                              />
-                            );
-                          })}
-                        </div>
-
-                        {/* Meta row */}
-                        <span
-                          style={{
-                            ...MONO,
-                            fontSize: '10px',
-                            color: 'var(--nx-text-muted)',
-                          }}
-                        >
-                          {formatRelativeTime(session.timestamp)} · {modeCount} {modeCount === 1 ? 'mode' : 'modes'} · {totalNodes} nodes
+                <div style={{ display: 'grid', gap: 6 }}>
+                  {sessions.map((session, i) => (
+                    <div
+                      key={session.id}
+                      onClick={() => {
+                        onRestoreSession(session);
+                        onClose();
+                      }}
+                      style={{
+                        padding: '10px 12px',
+                        background: 'var(--nx-bg-panel, var(--nx-surface))',
+                        border: '1px solid var(--nx-border)',
+                        cursor: 'pointer',
+                        transition: 'border-color 150ms'
+                      }}
+                      onMouseEnter={e => 
+                        e.currentTarget.style.borderColor = 
+                          'var(--nx-border-hover)'
+                      }
+                      onMouseLeave={e =>
+                        e.currentTarget.style.borderColor = 
+                          'var(--nx-border)'
+                      }
+                    >
+                      {/* Mode badge + time */}
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 4
+                      }}>
+                        <span style={{
+                          fontFamily: 'var(--nx-font-mono)',
+                          fontSize: 9,
+                          letterSpacing: '0.1em',
+                          textTransform: 'uppercase',
+                          color: {
+                            debate: 'var(--nx-challenger)',
+                            research: 'var(--nx-factchecker)',
+                            code: 'var(--nx-codeanalyst)',
+                            plan: 'var(--nx-synthesizer)'
+                          }[session.mode]
+                        }}>
+                          {session.mode}
+                        </span>
+                        <span style={{
+                          fontFamily: 'var(--nx-font-mono)',
+                          fontSize: 9,
+                          color: 'var(--nx-text-muted)'
+                        }}>
+                          {getRelativeTime(session.timestamp)}
                         </span>
                       </div>
-                    );
-                  })}
+                      
+                      {/* TLDR */}
+                      <p style={{
+                        fontFamily: 'var(--nx-font-display)',
+                        fontSize: 12, fontWeight: 500,
+                        color: 'rgba(255,255,255,0.85)',
+                        margin: '0 0 4px',
+                        lineHeight: 1.4
+                      }}>
+                        {session.tldr.slice(0, 55)}
+                        {session.tldr.length > 55 ? '...' : ''}
+                      </p>
+                      
+                      {/* Stats */}
+                      <p style={{
+                        fontFamily: 'var(--nx-font-mono)',
+                        fontSize: 9,
+                        color: 'var(--nx-text-muted)',
+                        margin: 0
+                      }}>
+                        {session.nodeCount} nodes · {session.edgeCount} edges
+                      </p>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
             {/* FOOTER */}
-            {validSessions.length > 0 && (
+            {sessions.length > 0 && (
               <div
                 style={{
                   padding: '16px 20px',
