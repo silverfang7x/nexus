@@ -46,56 +46,6 @@ function sanitizeLabel(label: string): string {
     .trim();
 }
 
-function buildCodeTreeLayout(
-  nodes: GraphNode[],
-  edges: GraphEdge[],
-  width: number,
-  height: number
-): Map<string, { x: number; y: number }> {
-  const positions = new Map<string, { x: number; y: number }>();
-  
-  const fileNodes = nodes.filter(n => n.type === 'file');
-  const issueNodes = nodes.filter(n => n.type === 'issue');
-  const fixNodes = nodes.filter(n => n.type === 'fix');
-  
-  const padding = 80;
-  const colWidth = (width - padding * 2) / 3;
-  
-  const fileSpacing = Math.min(
-    60, 
-    (height - padding * 2) / Math.max(fileNodes.length, 1)
-  );
-  fileNodes.forEach((node, i) => {
-    positions.set(node.id, {
-      x: padding + colWidth * 0.3,
-      y: padding + i * fileSpacing + fileSpacing / 2
-    });
-  });
-  
-  const issueSpacing = Math.min(
-    55,
-    (height - padding * 2) / Math.max(issueNodes.length, 1)
-  );
-  issueNodes.forEach((node, i) => {
-    positions.set(node.id, {
-      x: padding + colWidth * 1.2,
-      y: padding + i * issueSpacing + issueSpacing / 2
-    });
-  });
-  
-  const fixSpacing = Math.min(
-    60,
-    (height - padding * 2) / Math.max(fixNodes.length, 1)
-  );
-  fixNodes.forEach((node, i) => {
-    positions.set(node.id, {
-      x: padding + colWidth * 2.1,
-      y: padding + i * fixSpacing + fixSpacing / 2
-    });
-  });
-  
-  return positions;
-}
 
 
 export interface NexusGraphProps {
@@ -167,9 +117,17 @@ export default function NexusGraph({
 
     const simulation = d3.forceSimulation<SimNode>()
       .alphaDecay(0.025)
-      .velocityDecay(0.4)
-      .force('link', d3.forceLink<SimNode, SimLink>()
-        .id((d: SimNode) => d.id)
+      .velocityDecay(0.4);
+
+    // Link force
+    const linkForce = d3.forceLink<SimNode, SimLink>()
+      .id((d: SimNode) => d.id);
+    if (mode === 'code') {
+      linkForce
+        .distance(90)
+        .strength(0.5);
+    } else {
+      linkForce
         .distance((link) => {
           const src = typeof link.source === 'object' ? (link.source as SimNode) : null;
           if (src && src.type === 'task') {
@@ -183,23 +141,53 @@ export default function NexusGraph({
             return 0.9;
           }
           return 0.6;
-        })
-      )
-      .force('charge', d3.forceManyBody()
+        });
+    }
+    simulation.force('link', linkForce);
+
+    // Charge force
+    const chargeForce = d3.forceManyBody<SimNode>();
+    if (mode === 'code') {
+      chargeForce
+        .strength(-380)
+        .distanceMax(250);
+    } else {
+      chargeForce
         .strength(-220)
-        .distanceMax(300)
-      )
-      .force('collision', d3.forceCollide<SimNode>()
+        .distanceMax(300);
+    }
+    simulation.force('charge', chargeForce);
+
+    // Collision force
+    const collisionForce = d3.forceCollide<SimNode>();
+    if (mode === 'code') {
+      collisionForce
+        .radius((d: any) => {
+          if (d.type === 'file') return 75;
+          if (d.type === 'issue') return 55;
+          return 45;
+        })
+        .strength(0.95);
+    } else {
+      collisionForce
         .radius((d) => {
           if (d.type === 'milestone') return 72;  // more space for week labels
           if (d.type === 'source') return 65;
           if (d.type === 'task') return 35;       // tighter spacing for tasks
           return 52;
         })
-        .strength(0.85)
-      )
-      .force('x', d3.forceX<SimNode>(currentWidth / 2).strength(0.04))
-      .force('y', d3.forceY<SimNode>(currentHeight * 0.45).strength(0.06));
+        .strength(0.85);
+    }
+    simulation.force('collision', collisionForce);
+
+    // X/Y forces
+    if (mode === 'code') {
+      simulation.force('x', d3.forceX<SimNode>(currentWidth / 2).strength(0.02));
+      simulation.force('y', d3.forceY<SimNode>(currentHeight / 2).strength(0.02));
+    } else {
+      simulation.force('x', d3.forceX<SimNode>(currentWidth / 2).strength(0.04));
+      simulation.force('y', d3.forceY<SimNode>(currentHeight * 0.45).strength(0.06));
+    }
 
     if (mode === 'debate') {
       // Advocate nodes (claims) pull to LEFT side
@@ -277,8 +265,13 @@ export default function NexusGraph({
           simulation.force('debate-y', null);
         }
 
-        simulation.force('x', d3.forceX<SimNode>(newWidth / 2).strength(0.04));
-        simulation.force('y', d3.forceY<SimNode>(newHeight * 0.45).strength(0.06));
+        if (mode === 'code') {
+          simulation.force('x', d3.forceX<SimNode>(newWidth / 2).strength(0.02));
+          simulation.force('y', d3.forceY<SimNode>(newHeight / 2).strength(0.02));
+        } else {
+          simulation.force('x', d3.forceX<SimNode>(newWidth / 2).strength(0.04));
+          simulation.force('y', d3.forceY<SimNode>(newHeight * 0.45).strength(0.06));
+        }
         simulation.alpha(0.3).restart();
       });
 
@@ -309,13 +302,8 @@ export default function NexusGraph({
       })
       .on('end', (event, d) => {
         if (!event.active) sim.alphaTarget(0);
-        if (mode === 'code') {
-          d.fx = d.x;
-          d.fy = d.y;
-        } else {
-          d.fx = null;
-          d.fy = null;
-        }
+        d.fx = null;
+        d.fy = null;
       });
   };
 
@@ -327,46 +315,22 @@ export default function NexusGraph({
     // Get width and height from sizeRef
     const { width, height } = sizeRef.current;
 
-    const svgWidth = width;
-    const fileNodes = nodes.filter(n => n.type === 'file');
-    const svgHeight = mode === 'code' ? Math.max(height, fileNodes.length * 60 + 160) : height;
-
     const existingNodesMap = new Map<string, SimNode>(
       simNodesRef.current.map(n => [n.id, n])
     );
 
-    let nextSimNodes: SimNode[];
-    if (mode === 'code') {
-      const positions = buildCodeTreeLayout(nodes, edges, svgWidth, svgHeight);
-      nextSimNodes = nodes.map(node => {
-        const existing = existingNodesMap.get(node.id);
-        const hasDragLock = existing && (existing.fx !== null && existing.fx !== undefined);
-        const xPos = hasDragLock ? existing.fx! : (positions.get(node.id)?.x ?? svgWidth / 2);
-        const yPos = hasDragLock ? existing.fy! : (positions.get(node.id)?.y ?? svgHeight / 2);
-        return {
-          ...node,
-          x: xPos,
-          y: yPos,
-          vx: 0,
-          vy: 0,
-          fx: xPos,
-          fy: yPos
-        };
-      });
-    } else {
-      nextSimNodes = nodes.map(node => {
-        const existing = existingNodesMap.get(node.id);
-        return {
-          ...node,
-          x: existing?.x ?? node.x ?? (width / 2 + (Math.random() - 0.5) * 80),
-          y: existing?.y ?? node.y ?? (height / 2 + (Math.random() - 0.5) * 80),
-          vx: existing?.vx ?? 0,
-          vy: existing?.vy ?? 0,
-          fx: existing?.fx ?? null,
-          fy: existing?.fy ?? null
-        };
-      });
-    }
+    const nextSimNodes: SimNode[] = nodes.map(node => {
+      const existing = existingNodesMap.get(node.id);
+      return {
+        ...node,
+        x: existing?.x ?? node.x ?? (width / 2 + (Math.random() - 0.5) * 80),
+        y: existing?.y ?? node.y ?? (height / 2 + (Math.random() - 0.5) * 80),
+        vx: existing?.vx ?? 0,
+        vy: existing?.vy ?? 0,
+        fx: existing?.fx ?? null,
+        fy: existing?.fy ?? null
+      };
+    });
 
     // Map links
     const nextSimLinks: SimLink[] = edges.map(edge => ({
@@ -384,15 +348,7 @@ export default function NexusGraph({
       linkForce.links(nextSimLinks);
     }
 
-    if (mode === 'code') {
-      sim
-        .force('charge', d3.forceManyBody().strength(-10))
-        .force('center', null)
-        .force('collision', null);
-      sim.alpha(0.1).restart();
-    } else {
-      sim.alpha(0.4).restart();
-    }
+    sim.alpha(0.4).restart();
 
     let fitTimeout: ReturnType<typeof setTimeout> | undefined;
     if (nodes.length > 0 && !hasFittedRef.current) {
@@ -982,7 +938,7 @@ export default function NexusGraph({
 
   return (
     <div 
-      className="w-full h-full relative"
+      className="w-full h-full relative overflow-hidden"
       data-mode={mode}
       data-status={isLoading ? 'running' : 'complete'}
       style={{
@@ -990,8 +946,6 @@ export default function NexusGraph({
         backgroundImage: 'radial-gradient(var(--nx-canvas-grid) 1.5px, transparent 1.5px)',
         backgroundSize: '24px 24px',
         transition: 'background-color 0.4s ease, border-color 0.4s ease',
-        overflowX: 'hidden',
-        overflowY: mode === 'code' ? 'auto' : 'hidden',
       }}
     >
       {/* Self-contained CSS injection for keyframe pulse animations */}
@@ -1018,10 +972,7 @@ export default function NexusGraph({
       `}</style>
       <svg 
         ref={svgRef} 
-        className="w-full block"
-        style={{
-          height: mode === 'code' ? Math.max(height, nodes.filter(n => n.type === 'file').length * 60 + 160) : '100%'
-        }}
+        className="w-full h-full block"
         onClick={(event) => {
           if (event.target === svgRef.current) {
             onNodeClick?.(null);
@@ -1095,46 +1046,7 @@ export default function NexusGraph({
               </text>
             </g>
           )}
-          {mode === 'code' && (
-            <g className="code-background-decorations" style={{ pointerEvents: 'none' }}>
-              <text
-                x={80 + ((width - 160) / 3) * 0.3}
-                y={60}
-                fontSize={11}
-                fontFamily="var(--nx-font-mono), monospace"
-                fontWeight={700}
-                fill="rgba(255, 255, 255, 0.20)"
-                letterSpacing="0.15em"
-                textAnchor="middle"
-              >
-                FILES
-              </text>
-              <text
-                x={80 + ((width - 160) / 3) * 1.2}
-                y={60}
-                fontSize={11}
-                fontFamily="var(--nx-font-mono), monospace"
-                fontWeight={700}
-                fill="rgba(255, 255, 255, 0.20)"
-                letterSpacing="0.15em"
-                textAnchor="middle"
-              >
-                ISSUES
-              </text>
-              <text
-                x={80 + ((width - 160) / 3) * 2.1}
-                y={60}
-                fontSize={11}
-                fontFamily="var(--nx-font-mono), monospace"
-                fontWeight={700}
-                fill="rgba(255, 255, 255, 0.20)"
-                letterSpacing="0.15em"
-                textAnchor="middle"
-              >
-                SUGGESTIONS
-              </text>
-            </g>
-          )}
+
           <g className="edges-group" />
           <g className="nodes-group" />
         </g>
