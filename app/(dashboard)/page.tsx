@@ -6,6 +6,7 @@ import NexusGraph from '@/components/canvas/NexusGraph';
 import AgentPanel from '@/components/agents/AgentPanel';
 import ModeSelector from '@/components/ui/ModeSelector';
 import VerdictPanel from '@/components/output/VerdictPanel';
+import ExportButton from '@/components/output/ExportButton';
 import SessionBar from '@/components/ui/SessionBar';
 import { saveSession, getSessions, NexusSession } from '@/lib/sessionStorage';
 import { useAgentStream } from '@/hooks/useAgentStream';
@@ -192,6 +193,50 @@ function FAB({
       }}
     >
       {label}
+    </button>
+  );
+}
+
+// ─── Copy Button ──────────────────────────────────────────────────────────────
+
+interface CopyButtonProps {
+  output: unknown;
+}
+
+function CopyButton({ output }: CopyButtonProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (!output) return;
+    const text = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const disabled = !output;
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      disabled={disabled}
+      style={{
+        fontFamily: 'var(--nx-font-mono), monospace',
+        fontSize: '9px',
+        border: `1px solid ${disabled ? 'rgba(255, 255, 255, 0.05)' : 'var(--nx-border)'}`,
+        background: copied ? 'rgba(29, 158, 117, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+        padding: '4px 10px',
+        borderRadius: 0,
+        color: copied ? 'var(--nx-factchecker)' : 'rgba(255, 255, 255, 0.8)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.4 : 1,
+        transition: 'all 150ms',
+        userSelect: 'none',
+      }}
+    >
+      {copied ? 'COPIED ✓' : 'COPY'}
     </button>
   );
 }
@@ -608,7 +653,7 @@ export default function Dashboard() {
           flexShrink: 0,
         }}
       />
-      <div style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="output-scroll-panel" style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}>
         <VerdictPanel 
           output={verdict} 
           mode={activeMode}
@@ -619,6 +664,26 @@ export default function Dashboard() {
           nodes={nodes}
           session={{ query, mode: activeMode, nodes, edges }}
           hasRun={currentState.hasRun}
+        />
+      </div>
+      {/* Export + Copy buttons row */}
+      <div style={{
+        flexShrink: 0,
+        display: 'flex',
+        gap: 8,
+        padding: '10px 16px',
+        borderTop: '1px solid var(--nx-border)',
+        background: 'var(--nx-surface)',
+        opacity: currentState.structuredOutput ? 1 : 0.4,
+        pointerEvents: currentState.structuredOutput ? 'auto' : 'none',
+        marginTop: 12,
+      }}>
+        <CopyButton output={currentState.structuredOutput} />
+        <ExportButton
+          mode={activeMode}
+          query={currentState.query}
+          output={currentState.structuredOutput}
+          nodes={currentState.nodes}
         />
       </div>
     </div>
@@ -944,7 +1009,7 @@ export default function Dashboard() {
                 flexShrink: 0,
               }}
             />
-            <div style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div className="output-scroll-panel" style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}>
               <VerdictPanel 
                 output={verdict} 
                 mode={activeMode}
@@ -955,6 +1020,25 @@ export default function Dashboard() {
                 nodes={nodes}
                 session={{ query, mode: activeMode, nodes, edges }}
                 hasRun={currentState.hasRun}
+              />
+            </div>
+            {/* Export + Copy buttons row */}
+            <div style={{
+              flexShrink: 0,
+              display: 'flex',
+              gap: 8,
+              padding: '10px 16px',
+              borderTop: '1px solid var(--nx-border)',
+              background: 'var(--nx-surface)',
+              opacity: currentState.structuredOutput ? 1 : 0.4,
+              pointerEvents: currentState.structuredOutput ? 'auto' : 'none',
+            }}>
+              <CopyButton output={currentState.structuredOutput} />
+              <ExportButton
+                mode={activeMode}
+                query={currentState.query}
+                output={currentState.structuredOutput}
+                nodes={currentState.nodes}
               />
             </div>
           </div>

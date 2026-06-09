@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { NexusMode, GraphNode, GraphEdge } from '@/types/nexus';
-import { exportToMarkdown } from '@/lib/exportMarkdown';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -125,7 +125,7 @@ function DebateView({ data }: { data: DebateOutput }) {
           {(data.for ?? []).map((point, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
               <span style={{ ...MONO, fontSize: 11, color: 'var(--nx-advocate)', flexShrink: 0, marginTop: 1 }}>→</span>
-              <span style={{ ...MONO, fontSize: 11, color: 'var(--nx-advocate)', lineHeight: 1.55 }}>{point}</span>
+              <span style={{ ...MONO, fontSize: 11, color: 'var(--nx-advocate)', lineHeight: 1.55, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{point}</span>
             </div>
           ))}
         </div>
@@ -138,7 +138,7 @@ function DebateView({ data }: { data: DebateOutput }) {
           {(data.against ?? []).map((point, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
               <span style={{ ...MONO, fontSize: 11, color: 'var(--nx-challenger)', flexShrink: 0, marginTop: 1 }}>→</span>
-              <span style={{ ...MONO, fontSize: 11, color: 'var(--nx-challenger)', lineHeight: 1.55 }}>{point}</span>
+              <span style={{ ...MONO, fontSize: 11, color: 'var(--nx-challenger)', lineHeight: 1.55, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{point}</span>
             </div>
           ))}
         </div>
@@ -191,7 +191,7 @@ function ResearchView({ data }: { data: ResearchOutput }) {
                 }}
               />
               <div>
-                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.82)', lineHeight: 1.55 }}>
+                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.82)', lineHeight: 1.55, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                   {f.claim}
                 </span>
                 {f.source && (
@@ -213,7 +213,7 @@ function ResearchView({ data }: { data: ResearchOutput }) {
             {data.contradictions.map((c, i) => (
               <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                 <span style={{ ...MONO, fontSize: 11, color: '#E24B4A', flexShrink: 0, marginTop: 1 }}>✗</span>
-                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.65)', lineHeight: 1.5 }}>{c}</span>
+                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.65)', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{c}</span>
               </div>
             ))}
           </div>
@@ -251,7 +251,7 @@ function PlanView({ data }: { data: PlanOutput }) {
       {data.problem && (
         <div style={SECTION}>
           <SectionLabel>PROBLEM</SectionLabel>
-          <p style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6, margin: 0 }}>
+          <p style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6, margin: 0, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
             {data.problem}
           </p>
         </div>
@@ -299,7 +299,7 @@ function PlanView({ data }: { data: PlanOutput }) {
                 <span style={{ ...MONO, fontSize: 10, color: 'var(--nx-synthesizer)', flexShrink: 0, minWidth: 16 }}>
                   {i + 1}.
                 </span>
-                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.78)', lineHeight: 1.5 }}>{f}</span>
+                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.78)', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{f}</span>
               </div>
             ))}
           </div>
@@ -314,7 +314,7 @@ function PlanView({ data }: { data: PlanOutput }) {
             {data.risks.map((r, i) => (
               <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                 <span style={{ fontSize: 11, flexShrink: 0, marginTop: 1 }}>⚠</span>
-                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.72)', lineHeight: 1.5 }}>{r}</span>
+                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.72)', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{r}</span>
               </div>
             ))}
           </div>
@@ -456,7 +456,7 @@ function CodeView({ data }: { data: CodeOutput }) {
                 >
                   {issue.file}
                 </span>
-                <span style={{ ...MONO, fontSize: 10, color: 'rgba(255,255,255,0.78)', lineHeight: 1.5 }}>
+                <span style={{ ...MONO, fontSize: 10, color: 'rgba(255,255,255,0.78)', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                   {issue.issue}
                 </span>
                 <span
@@ -486,7 +486,7 @@ function CodeView({ data }: { data: CodeOutput }) {
                 <span style={{ ...MONO, fontSize: 10, color: 'var(--nx-synthesizer)', flexShrink: 0, minWidth: 16 }}>
                   {i + 1}.
                 </span>
-                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.78)', lineHeight: 1.5 }}>{s}</span>
+                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.78)', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{s}</span>
               </div>
             ))}
           </div>
@@ -524,7 +524,7 @@ function RawTextView({ verdict }: { verdict: string }) {
 
   const paragraphs = verdict.split(/\n\n|\n(?=[A-Z])/).filter(Boolean);
   return (
-    <div style={{ wordBreak: 'break-word' }}>
+    <div style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
       {paragraphs.map((para, i) => (
         <p
           key={i}
@@ -537,6 +537,7 @@ function RawTextView({ verdict }: { verdict: string }) {
             paddingLeft: i === 0 ? 12 : undefined,
             marginBottom: i === 0 ? 20 : 16,
             wordBreak: 'break-word',
+            overflowWrap: 'anywhere',
           }}
         >
           {para}
@@ -560,48 +561,6 @@ export default function VerdictPanel({
   hasRun = true,
 }: VerdictPanelProps) {
   const verdict = typeof output === 'string' ? output : (output ? JSON.stringify(output) : '');
-  const [copied, setCopied] = useState(false);
-  const [exportLabel, setExportLabel] = useState('EXPORT');
-
-  const handleExport = () => {
-    const activeSession = session || {
-      query,
-      mode,
-      nodes,
-      edges: [],
-    };
-
-    const markdown = exportToMarkdown({
-      query: activeSession.query,
-      mode: activeSession.mode,
-      nodes: activeSession.nodes,
-      edges: activeSession.edges || [],
-      verdict,
-      timestamp: Date.now(),
-    });
-
-    const blob = new Blob([markdown], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-
-    const slug = activeSession.query
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
-      .split(' ')
-      .slice(0, 3)
-      .join('-');
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    a.download = `nexus-${activeSession.mode}-${slug}-${date}.md`;
-
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    setExportLabel('EXPORTED ✓');
-    setTimeout(() => setExportLabel('EXPORT'), 2000);
-  };
 
   // Parse JSON at the top — MUST be before any early returns to obey Rules of Hooks
   const parsed = useMemo(() => {
@@ -613,30 +572,10 @@ export default function VerdictPanel({
     }
   }, [verdict]);
 
-  const handleCopy = () => {
-    if (!verdict) return;
-    navigator.clipboard.writeText(verdict).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
-  const actionButtonStyle: React.CSSProperties = {
-    ...MONO,
-    fontSize: '9px',
-    border: '1px solid var(--nx-border)',
-    background: 'rgba(255, 255, 255, 0.02)',
-    padding: '4px 10px',
-    borderRadius: 0,
-    color: 'rgba(255, 255, 255, 0.8)',
-    cursor: 'pointer',
-    transition: 'all 150ms',
-  };
-
   // ── 1. Loading state ──────────────────────────────────────────────────────
   if (isRunning && !verdict) {
     return (
-      <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', padding: 16 }}>
+      <div style={{ width: '100%', padding: 16 }}>
         <div className="label-xs mb-4">OUTPUT</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {[100, 90, 60].map((w, i) => (
@@ -660,9 +599,9 @@ export default function VerdictPanel({
   // ── 2. Empty state ────────────────────────────────────────────────────────
   if (!verdict) {
     return (
-      <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', padding: 16 }}>
+      <div style={{ width: '100%', padding: 16 }}>
         <div className="label-xs mb-4">OUTPUT</div>
-        <div style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 120 }}>
           <span style={{ ...MONO, fontSize: 11, color: 'var(--nx-text-muted)' }}>
             {hasRun === false ? "Run a query to see output" : "Awaiting synthesis..."}
           </span>
@@ -682,15 +621,8 @@ export default function VerdictPanel({
     <div
       className="verdict-panel"
       style={{
-        padding: '16px 16px 0 16px',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        flex: '1 1 0%',
-        minHeight: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        position: 'relative',
+        padding: 16,
+        width: '100%',
       }}
     >
       {/* Top metadata row */}
@@ -704,7 +636,7 @@ export default function VerdictPanel({
       </div>
 
       {/* Structured or raw content */}
-      <div style={{ flexGrow: 1 }}>
+      <div>
         {parsed ? (
           <>
             {mode === 'debate' && <DebateView data={parsed as DebateOutput} />}
@@ -719,52 +651,6 @@ export default function VerdictPanel({
         ) : (
           <RawTextView verdict={verdict} />
         )}
-      </div>
-
-      {/* Bottom action row */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          marginTop: 16,
-          borderTop: '1px solid var(--nx-border)',
-          padding: '12px 16px',
-          marginLeft: -16,
-          marginRight: -16,
-          background: 'var(--nx-bg-elevated)',
-          flexShrink: 0,
-          position: 'sticky',
-          bottom: 0,
-          zIndex: 10,
-        }}
-      >
-        <button
-          type="button"
-          onClick={handleCopy}
-          style={actionButtonStyle}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
-        >
-          {copied ? 'COPIED' : 'COPY'}
-        </button>
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={!verdict}
-          style={{
-            ...actionButtonStyle,
-            cursor: !verdict ? 'not-allowed' : 'pointer',
-            opacity: !verdict ? 0.45 : 1,
-          }}
-          onMouseEnter={(e) => {
-            if (verdict) e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
-          }}
-        >
-          {exportLabel}
-        </button>
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ import { generateMarkdownExport } from '@/lib/exportMarkdown';
 interface ExportButtonProps {
   mode: NexusMode;
   query: string;
-  verdict: string;
+  output: unknown;
   nodes: GraphNode[];
   disabled?: boolean;
 }
@@ -16,7 +16,7 @@ interface ExportButtonProps {
 export default function ExportButton({
   mode,
   query,
-  verdict,
+  output,
   nodes,
   disabled = false,
 }: ExportButtonProps) {
@@ -34,7 +34,7 @@ export default function ExportButton({
   }, [exportStatus]);
 
   const handleExport = () => {
-    if (disabled || !verdict || exportStatus === 'exporting') return;
+    if (disabled || !output || exportStatus === 'exporting') return;
 
     setExportStatus('exporting');
 
@@ -42,11 +42,15 @@ export default function ExportButton({
     setTimeout(() => {
       try {
         let structuredOutput = null;
-        try {
-          structuredOutput = JSON.parse(verdict);
-        } catch (e) {
-          console.warn('Failed to parse verdict JSON for structured markdown export', e);
-          structuredOutput = verdict;
+        if (typeof output === 'string') {
+          try {
+            structuredOutput = JSON.parse(output);
+          } catch (e) {
+            console.warn('Failed to parse output JSON for structured markdown export', e);
+            structuredOutput = output;
+          }
+        } else {
+          structuredOutput = output;
         }
 
         const generatedSessionId = Math.random().toString(36).substring(2, 15);
@@ -75,7 +79,7 @@ export default function ExportButton({
     }, 600);
   };
 
-  const isBtnDisabled = disabled || !verdict || exportStatus === 'exporting';
+  const isBtnDisabled = disabled || !output || exportStatus === 'exporting';
 
   const MONO: React.CSSProperties = { fontFamily: 'var(--nx-font-mono), monospace' };
 

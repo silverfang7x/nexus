@@ -18,6 +18,7 @@
   /* === BACKGROUNDS === */
   --nx-bg: #0A0A0F;
   --nx-bg-elevated: #111118;
+  --nx-surface: #111118;
   --nx-bg-panel: rgba(255, 255, 255, 0.04);
   --nx-bg-panel-hover: rgba(255, 255, 255, 0.06);
 
@@ -383,6 +384,20 @@ body > * {
 .verdict-panel::-webkit-scrollbar-thumb:hover,
 .agent-thought-text::-webkit-scrollbar-thumb:hover,
 .left-agent-column::-webkit-scrollbar-thumb:hover {
+  background: var(--nx-border-hover);
+}
+
+.output-scroll-panel::-webkit-scrollbar {
+  width: 3px;
+}
+.output-scroll-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.output-scroll-panel::-webkit-scrollbar-thumb {
+  background: var(--nx-border);
+  border-radius: 2px;
+}
+.output-scroll-panel::-webkit-scrollbar-thumb:hover {
   background: var(--nx-border-hover);
 }
 
