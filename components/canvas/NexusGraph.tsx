@@ -58,8 +58,8 @@ function buildCodeTreeLayout(
   const issueNodes = nodes.filter(n => n.type === 'issue');
   const fixNodes = nodes.filter(n => n.type === 'fix');
   
-  const padding = 80;
-  const colWidth = (width - padding * 2) / 3;
+  const padding = 48;
+  const totalWidth = width - padding * 2;
   
   const fileSpacing = Math.min(
     60, 
@@ -67,7 +67,7 @@ function buildCodeTreeLayout(
   );
   fileNodes.forEach((node, i) => {
     positions.set(node.id, {
-      x: padding + colWidth * 0.3,
+      x: padding + totalWidth * 0.18,
       y: padding + i * fileSpacing + fileSpacing / 2
     });
   });
@@ -78,7 +78,7 @@ function buildCodeTreeLayout(
   );
   issueNodes.forEach((node, i) => {
     positions.set(node.id, {
-      x: padding + colWidth * 1.4,
+      x: padding + totalWidth * 0.52,
       y: padding + i * issueSpacing + issueSpacing / 2
     });
   });
@@ -89,7 +89,7 @@ function buildCodeTreeLayout(
   );
   fixNodes.forEach((node, i) => {
     positions.set(node.id, {
-      x: padding + colWidth * 2.1,
+      x: padding + totalWidth * 0.85,
       y: padding + i * fixSpacing + fixSpacing / 2
     });
   });
@@ -1103,7 +1103,7 @@ export default function NexusGraph({
           {mode === 'code' && (
             <g className="code-background-decorations" style={{ pointerEvents: 'none' }}>
               <text
-                x={80 + ((width - 160) / 3) * 0.3}
+                x={48 + (width - 96) * 0.18}
                 y={60}
                 fontSize={11}
                 fontFamily="var(--nx-font-mono), monospace"
@@ -1115,7 +1115,7 @@ export default function NexusGraph({
                 FILES
               </text>
               <text
-                x={80 + ((width - 160) / 3) * 1.2}
+                x={48 + (width - 96) * 0.52}
                 y={60}
                 fontSize={11}
                 fontFamily="var(--nx-font-mono), monospace"
@@ -1127,7 +1127,7 @@ export default function NexusGraph({
                 ISSUES
               </text>
               <text
-                x={80 + ((width - 160) / 3) * 2.1}
+                x={48 + (width - 96) * 0.85}
                 y={60}
                 fontSize={11}
                 fontFamily="var(--nx-font-mono), monospace"
