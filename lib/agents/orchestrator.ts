@@ -1,4 +1,4 @@
-import { AgentEvent, NexusMode } from "@/types/nexus";
+import { AgentEvent, NexusMode, GraphNode } from "@/types/nexus";
 import { runAdvocate } from "./advocate";
 import { runChallenger } from "./challenger";
 import { runSynthesizer } from "./synthesizer";
@@ -65,8 +65,25 @@ export async function runDebateMode(
 
 export async function runPlanMode(
   query: string,
-  onEvent: (event: AgentEvent) => void
+  onEvent: (event: AgentEvent) => void,
+  continuationContext?: {
+    existingNodes: GraphNode[];
+    instruction: string;
+  }
 ): Promise<string> {
+  let systemPromptPrefix = '';
+  if (continuationContext) {
+    systemPromptPrefix = `EXISTING PROJECT CONTEXT:
+${continuationContext.existingNodes
+  .map(n => n.label + ': ' + n.content.slice(0, 80))
+  .join('\n')}
+
+The user wants to EXTEND this project with: ${query}
+
+Do NOT repeat existing elements. Only generate NEW nodes that add to the existing plan. Reference existing nodes by their exact label when creating edges.
+At the end of each generated item, you MUST append a connection hint pointing to a relevant existing node label from the context, for example: "CONNECTS_TO: [Core Problem]" or "EXTENDS: [Week 3]".`;
+  }
+
   // 1. problemAgent
   onEvent({
     agentId: 'advocate',
@@ -74,7 +91,7 @@ export async function runPlanMode(
     payload: { text: 'Analyzing app concept and core problem...' },
     timestamp: Date.now()
   });
-  const problemResult = await runProblemAgent(query, onEvent);
+  const problemResult = await runProblemAgent(query, onEvent, systemPromptPrefix);
   
   // 2. stackAgent (with 400ms delay)
   await new Promise(r => setTimeout(r, 400));
@@ -84,7 +101,7 @@ export async function runPlanMode(
     payload: { text: 'Architecting optimal stack and connections...' },
     timestamp: Date.now()
   });
-  const stackOutput = await runStackAgent(query, onEvent, problemResult.coreProblemNodeId);
+  const stackOutput = await runStackAgent(query, onEvent, problemResult.coreProblemNodeId, systemPromptPrefix);
 
   // 3. riskAgent (with 400ms delay)
   await new Promise(r => setTimeout(r, 400));
@@ -94,7 +111,7 @@ export async function runPlanMode(
     payload: { text: 'Identifying startup and project risks...' },
     timestamp: Date.now()
   });
-  const riskOutput = await runRiskAgent(query, onEvent, problemResult.coreProblemNodeId);
+  const riskOutput = await runRiskAgent(query, onEvent, problemResult.coreProblemNodeId, systemPromptPrefix);
 
   // 4. timelineAgent (with 400ms delay)
   await new Promise(r => setTimeout(r, 400));
@@ -104,7 +121,7 @@ export async function runPlanMode(
     payload: { text: 'Drafting milestone timeline...' },
     timestamp: Date.now()
   });
-  const timelineOutput = await runTimelineAgent(query, onEvent);
+  const timelineOutput = await runTimelineAgent(query, onEvent, systemPromptPrefix);
 
   // 5. blueprintSynthesizer (with 400ms delay)
   await new Promise(r => setTimeout(r, 400));

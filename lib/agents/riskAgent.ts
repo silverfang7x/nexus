@@ -5,9 +5,10 @@ import crypto from 'crypto';
 export async function runRiskAgent(
   query: string,
   onEvent: (event: AgentEvent) => void,
-  coreProblemNodeId: string
+  coreProblemNodeId: string,
+  systemPromptPrefix?: string
 ): Promise<string> {
-  const systemPrompt = `You are a startup advisor. Given this app idea, identify 
+  let systemPrompt = `You are a startup advisor. Given this app idea, identify 
 the 3 biggest risks that could kill this project.
 
 Format:
@@ -16,6 +17,10 @@ Format:
 3. [Risk name]: [one sentence description]
 
 Only the list.`;
+
+  if (systemPromptPrefix) {
+    systemPrompt = `${systemPromptPrefix}\n\n${systemPrompt}`;
+  }
 
   let fullText = '';
 

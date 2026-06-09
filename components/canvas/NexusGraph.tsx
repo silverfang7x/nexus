@@ -45,7 +45,7 @@ export interface NexusGraphProps {
   /** ID of the currently selected node — triggers white selection ring */
   selectedNodeId?: string | null;
   mode: NexusMode;
-  status: 'idle' | 'running' | 'complete' | 'error';
+  status: 'idle' | 'running' | 'complete' | 'error' | 'ready_for_continuation';
 }
 
 export default function NexusGraph({
@@ -615,9 +615,7 @@ export default function NexusGraph({
 
     // Nested node-content to avoid tick/transition transform conflicts
     const nodeContentEnter = nodeGroupsEnter.append('g')
-      .attr('class', 'node-content')
-      .style('opacity', 0)
-      .attr('transform', 'scale(0)');
+      .attr('class', 'node-content');
 
     // a) Circle 1 — outer ambient glow
     nodeContentEnter.append('circle')
@@ -699,6 +697,14 @@ export default function NexusGraph({
       .attr('stroke-width', '2')
       .style('pointer-events', 'none')
       .style('display', 'none');
+
+    // h) Continuation outer ring (small outer ring in a lighter shade)
+    nodeContentEnter.append('circle')
+      .attr('class', 'continuation-ring')
+      .attr('r', 26)
+      .attr('fill', 'none')
+      .attr('stroke-width', '1')
+      .style('pointer-events', 'none');
 
     // Merge & Update Node Details
     const nodeGroupsMerged = nodeGroupsEnter.merge(nodeGroups);
@@ -823,18 +829,58 @@ export default function NexusGraph({
         .attr('stroke', 'rgba(255,255,255,0.6)')
         .attr('stroke-opacity', isSelected ? 1 : 0)
         .style('transition', 'stroke-opacity 150ms');
+
+      // Continuation ring
+      const isContinuation = d.sessionIndex && d.sessionIndex > 0;
+      el.select('.continuation-ring')
+        .style('display', isContinuation ? 'block' : 'none')
+        .attr('stroke', color)
+        .attr('stroke-opacity', 0.5);
+
+      // Set node-content opacity based on sessionIndex if not entering
+      if (!(this as SVGGElement & { __isEntering?: boolean }).__isEntering) {
+        el.select('.node-content').style('opacity', isContinuation ? 0.85 : 1.0);
+      }
     });
 
-    // Animate content scaling up on enter (with spring easing and staggered delay)
+    // Set __isEntering flag on entering node group elements
+    nodeGroupsEnter.each(function() {
+      (this as SVGGElement & { __isEntering?: boolean }).__isEntering = true;
+    });
+
+    // Configure initial visual attributes for entering nodes
+    nodeContentEnter.each(function(d) {
+      const isContinuation = d.sessionIndex && d.sessionIndex > 0;
+      const el = d3.select(this);
+      
+      if (isContinuation) {
+        // Slide in from right edge (width - d.x)
+        const startX = width - (d.x ?? 0);
+        el.attr('transform', `translate(${startX}, 0) scale(1)`)
+          .style('opacity', 0);
+      } else {
+        // Scale up from center
+        el.attr('transform', 'translate(0, 0) scale(0)')
+          .style('opacity', 0);
+      }
+    });
+
+    // Animate content entrance transition (with spring easing and staggered delay)
     nodeContentEnter.transition()
       .delay((d) => {
         const index = nodes.findIndex(n => n.id === d.id);
         return Math.min(index * 80, 400);
       })
-      .duration(400)
-      .ease(d3.easeBackOut.overshoot(1.7))
-      .style('opacity', 1)
-      .attr('transform', 'scale(1)');
+      .duration(500)
+      .ease(d3.easeBackOut.overshoot(1.2))
+      .style('opacity', (d) => (d.sessionIndex && d.sessionIndex > 0) ? 0.85 : 1.0)
+      .attr('transform', 'translate(0, 0) scale(1)')
+      .on('end', function() {
+        const parent = this.parentNode as (SVGGElement & { __isEntering?: boolean }) | null;
+        if (parent) {
+          delete parent.__isEntering;
+        }
+      });
 
     // Update cursor style if click handler changes
     nodeGroupsMerged.style('cursor', onNodeClick ? 'pointer' : 'default');

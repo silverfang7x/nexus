@@ -176,7 +176,7 @@ function FAB({
 // ─── main dashboard ──────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { query, nodes, edges, events, status, verdict, activeAgents, processedQuery, agentThoughts, startSession, restoreSession, addNode, addEdge } =
+  const { query, nodes, edges, events, status, verdict, activeAgents, processedQuery, agentThoughts, startSession, restoreSession, addNode, addEdge, clearSession, isContinuationReady } =
     useAgentStream();
 
   useGraph(nodes, edges);
@@ -350,7 +350,7 @@ export default function Dashboard() {
   }, []);
 
   const handleQuerySubmit = useCallback(
-    (submittedQuery: string) => {
+    (submittedQuery: string, isContinuation = false) => {
       const isMock = submittedQuery.includes('--mock');
       const clean = submittedQuery.replace('--mock', '').trim();
       
@@ -359,7 +359,7 @@ export default function Dashboard() {
       setActiveSessionId(null);
       setInputQuery(clean);
       
-      startSession(activeMode, clean, isMock);
+      startSession(activeMode, clean, isMock, isContinuation);
     },
     [activeMode, startSession]
   );
@@ -457,8 +457,8 @@ export default function Dashboard() {
       <ModeSelector
         activeMode={activeMode}
         onModeChange={setActiveMode}
-        onSubmit={(q) => {
-          handleQuerySubmit(q);
+        onSubmit={(q, isCont) => {
+          handleQuerySubmit(q, isCont);
           setOutputOpen(false);
         }}
         isRunning={status === 'running'}
@@ -470,6 +470,9 @@ export default function Dashboard() {
         onAcceptSuggestion={(m) => setActiveMode(m)}
         query={inputQuery}
         onQueryChange={setInputQuery}
+        isContinuationReady={isContinuationReady}
+        nodeCount={nodes.length}
+        onClear={clearSession}
       />
       <div
         style={{
@@ -771,6 +774,9 @@ export default function Dashboard() {
                 onAcceptSuggestion={(m) => setActiveMode(m)}
                 query={inputQuery}
                 onQueryChange={setInputQuery}
+                isContinuationReady={isContinuationReady}
+                nodeCount={nodes.length}
+                onClear={clearSession}
               />
             </div>
             <div

@@ -1,5 +1,7 @@
-import { useState, useCallback } from "react";
-import { AgentEvent, GraphEdge, GraphNode, NexusMode, NexusSession, AgentId } from "@/types/nexus";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { AgentEvent, GraphEdge, GraphNode, NexusMode, AgentId } from "@/types/nexus";
+
+export type SessionStatus = 'idle' | 'running' | 'complete' | 'error' | 'ready_for_continuation';
 
 /** Mirrors the shape of ProcessedQuery for client-side use */
 export interface ClientProcessedQuery {
@@ -28,10 +30,15 @@ export function useAgentStream() {
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [events, setEvents] = useState<AgentEvent[]>([]);
-  const [status, setStatus] = useState<NexusSession['status']>('idle');
+  const [status, setStatus] = useState<SessionStatus>('idle');
   const [verdict, setVerdict] = useState<string>('');
   const [activeAgents, setActiveAgents] = useState<AgentId[]>([]);
   const [processedQuery, setProcessedQuery] = useState<ClientProcessedQuery | null>(null);
+  const [lastQuery, setLastQuery] = useState<string>('');
+  const [currentMode, setCurrentMode] = useState<NexusMode>('debate');
+
+  const sessionIndexRef = useRef(0);
+  const continuationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * agentThoughts: per-agent accumulated streaming text.
@@ -39,24 +46,53 @@ export function useAgentStream() {
    */
   const [agentThoughts, setAgentThoughts] = useState<Record<string, string>>({});
 
-  const startSession = useCallback(async (mode: NexusMode, query: string, useMock = false) => {
+  useEffect(() => {
+    return () => {
+      if (continuationTimeoutRef.current) {
+        clearTimeout(continuationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const startSession = useCallback(async (mode: NexusMode, query: string, useMock = false, isContinuation = false) => {
     setQuery(query);
-    setNodes([]);
-    setEdges([]);
-    setEvents([]);
+    setCurrentMode(mode);
+    setLastQuery(query);
+
+    if (continuationTimeoutRef.current) {
+      clearTimeout(continuationTimeoutRef.current);
+      continuationTimeoutRef.current = null;
+    }
+
+    if (!isContinuation) {
+      setNodes([]);
+      setEdges([]);
+      setEvents([]);
+      setVerdict('');
+      setAgentThoughts({});
+      sessionIndexRef.current = 0;
+    } else {
+      setAgentThoughts({});
+      sessionIndexRef.current += 1;
+    }
+
     setStatus('running');
-    setVerdict('');
     setActiveAgents([]);
     setProcessedQuery(null);
-    setAgentThoughts({});
 
     try {
+      const continuationContext = isContinuation ? {
+        existingNodes: nodes,
+        previousQuery: lastQuery,
+        mode: currentMode
+      } : undefined;
+
       const response = await fetch('/api/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ mode, query, useMock }),
+        body: JSON.stringify({ mode, query, useMock, continuationContext }),
       });
 
       if (!response.ok) {
@@ -93,9 +129,13 @@ export function useAgentStream() {
               setEvents((prev) => [...prev, event]);
 
               if (event.type === 'node_created' && event.payload.node) {
+                const nodeWithSession = {
+                  ...event.payload.node,
+                  sessionIndex: event.payload.node.sessionIndex ?? sessionIndexRef.current
+                };
                 setNodes((prev) => {
-                  const filtered = prev.filter(n => n.id !== event.payload.node!.id);
-                  return [...filtered, event.payload.node!];
+                  const filtered = prev.filter(n => n.id !== nodeWithSession.id);
+                  return [...filtered, nodeWithSession];
                 });
 
               } else if (event.type === 'edge_created' && event.payload.edge) {
@@ -105,8 +145,6 @@ export function useAgentStream() {
                 });
 
               } else if (event.type === 'thinking') {
-                // 'thinking' event: replace the agent's thought text with the status message
-                // and add the agent to the activeAgents list
                 setActiveAgents((prev) => {
                   if (!prev.includes(event.agentId)) {
                     return [...prev, event.agentId];
@@ -121,15 +159,12 @@ export function useAgentStream() {
                 }
 
               } else if (event.type === 'streaming') {
-                // 'streaming' event: APPEND the token to the agent's accumulated text
-                // This creates the typewriter character-by-character effect
                 if (event.payload.token) {
                   setAgentThoughts((prev) => ({
                     ...prev,
                     [event.agentId]: (prev[event.agentId] ?? '') + event.payload.token!,
                   }));
                 }
-                // Ensure the agent is in activeAgents
                 setActiveAgents((prev) => {
                   if (!prev.includes(event.agentId)) {
                     return [...prev, event.agentId];
@@ -138,7 +173,6 @@ export function useAgentStream() {
                 });
 
               } else if (event.type === 'complete') {
-                // 'complete' event: stream finished for this agent — keep text, mark done
                 if (event.payload.text) {
                   setAgentThoughts((prev) => ({
                     ...prev,
@@ -158,10 +192,16 @@ export function useAgentStream() {
                 setStatus('complete');
                 setActiveAgents([]);
 
+                if (continuationTimeoutRef.current) {
+                  clearTimeout(continuationTimeoutRef.current);
+                }
+                continuationTimeoutRef.current = setTimeout(() => {
+                  setStatus('ready_for_continuation');
+                }, 1500);
+
               } else if (event.type === 'error') {
                 setStatus('error');
               }
-              // note: 'message' events are already captured by appending to events array
             } catch (e) {
               console.error('Error parsing event JSON:', e);
             }
@@ -172,7 +212,7 @@ export function useAgentStream() {
       console.error('Stream error:', err);
       setStatus('error');
     }
-  }, []);
+  }, [nodes, lastQuery, currentMode]);
 
   const restoreSession = useCallback((session: RestoreSessionData) => {
     setQuery(session.query);
@@ -182,6 +222,17 @@ export function useAgentStream() {
     setStatus('complete');
     setActiveAgents([]);
     setAgentThoughts({});
+    setLastQuery(session.query);
+    setCurrentMode(session.mode);
+    sessionIndexRef.current = 0;
+
+    if (continuationTimeoutRef.current) {
+      clearTimeout(continuationTimeoutRef.current);
+    }
+    continuationTimeoutRef.current = setTimeout(() => {
+      setStatus('ready_for_continuation');
+    }, 1500);
+
     if (session.cleanQuery) {
       setProcessedQuery({
         cleanQuery: session.cleanQuery,
@@ -196,6 +247,24 @@ export function useAgentStream() {
       });
     } else {
       setProcessedQuery(null);
+    }
+  }, []);
+
+  const clearSession = useCallback(() => {
+    setQuery('');
+    setNodes([]);
+    setEdges([]);
+    setEvents([]);
+    setStatus('idle');
+    setVerdict('');
+    setActiveAgents([]);
+    setProcessedQuery(null);
+    setAgentThoughts({});
+    setLastQuery('');
+    sessionIndexRef.current = 0;
+    if (continuationTimeoutRef.current) {
+      clearTimeout(continuationTimeoutRef.current);
+      continuationTimeoutRef.current = null;
     }
   }, []);
 
@@ -227,5 +296,16 @@ export function useAgentStream() {
     restoreSession,
     addNode,
     addEdge,
+    clearSession,
+    isContinuationReady: status === 'ready_for_continuation' || status === 'complete',
+    currentSessionSummary: {
+      nodeCount: nodes.length,
+      nodeSummaries: nodes
+        .filter(n => ['feature','milestone','claim'].includes(n.type))
+        .slice(0, 8)
+        .map(n => n.label + ': ' + n.content.slice(0, 60)),
+      previousQuery: lastQuery,
+      mode: currentMode
+    }
   };
 }

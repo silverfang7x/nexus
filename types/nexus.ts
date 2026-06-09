@@ -31,6 +31,7 @@ export interface GraphNode {
   y?: number;
   color?: string;
   parentId?: string;
+  sessionIndex?: number;
 }
 
 export interface GraphEdge {
@@ -61,6 +62,8 @@ export interface AgentEvent {
       wasAmbiguous: boolean;
       originalQuery: string;
       enrichedQuery: string;
+      isContinuation: boolean;
+      continuationInstruction: string;
     };
   };
   timestamp: number;

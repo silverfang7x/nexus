@@ -4,15 +4,20 @@ import crypto from 'crypto';
 
 export async function runProblemAgent(
   query: string,
-  onEvent: (event: AgentEvent) => void
+  onEvent: (event: AgentEvent) => void,
+  systemPromptPrefix?: string
 ): Promise<{ output: string; coreProblemNodeId: string }> {
-  const systemPrompt = `You are a product strategy expert. Given an app idea, identify:
+  let systemPrompt = `You are a product strategy expert. Given an app idea, identify:
 1. The core problem being solved (1 sentence)
 2. The primary target user (1 sentence)  
 3. The key pain point that makes this urgent (1 sentence)
 4. One existing alternative and why it falls short (1 sentence)
 
 Format as numbered list 1-4. Nothing else.`;
+
+  if (systemPromptPrefix) {
+    systemPrompt = `${systemPromptPrefix}\n\n${systemPrompt}`;
+  }
 
   let fullText = '';
 

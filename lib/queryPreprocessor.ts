@@ -33,6 +33,9 @@ export interface ProcessedQuery {
    * Combines cleanQuery with intent and key entities for richer context.
    */
   enrichedQuery: string;
+
+  isContinuation: boolean;
+  continuationInstruction: string;
 }
 
 // ─── Mode keywords (fast path before LLM) ────────────────────────────────────
@@ -67,7 +70,7 @@ function fastDetectMode(query: string): { mode: NexusMode; confidence: number } 
 
 // ─── Fallback for graceful degradation ───────────────────────────────────────
 
-function buildFallback(rawQuery: string, userSelectedMode: NexusMode): ProcessedQuery {
+function buildFallback(rawQuery: string, userSelectedMode: NexusMode, isContinuation = false): ProcessedQuery {
   const clean = rawQuery.trim() || "Tell me something interesting about AI.";
   return {
     cleanQuery: clean,
@@ -79,6 +82,8 @@ function buildFallback(rawQuery: string, userSelectedMode: NexusMode): Processed
     wasAmbiguous: true,
     originalQuery: rawQuery,
     enrichedQuery: clean,
+    isContinuation,
+    continuationInstruction: isContinuation ? `Extend existing session with: ${clean}` : ""
   };
 }
 
@@ -97,12 +102,18 @@ function buildFallback(rawQuery: string, userSelectedMode: NexusMode): Processed
  */
 export async function preprocessQuery(
   rawQuery: string,
-  userSelectedMode: NexusMode
+  userSelectedMode: NexusMode,
+  existingContext?: {
+    nodeCount: number;
+    nodeSummaries: string[];
+    previousQuery: string;
+    mode: NexusMode;
+  }
 ): Promise<ProcessedQuery> {
   // Guard: empty or single-word query
   const trimmed = rawQuery.trim();
   if (!trimmed || trimmed.split(/\s+/).length <= 1) {
-    return buildFallback(trimmed, userSelectedMode);
+    return buildFallback(trimmed, userSelectedMode, !!existingContext);
   }
 
   // Fast path: if keywords clearly indicate a mode, skip LLM for mode detection
@@ -125,7 +136,8 @@ You MUST return ONLY a JSON object with exactly these fields (no markdown, no ex
   "intent": "<one sentence: what the user actually wants>",
   "domain": "<the knowledge domain, e.g. Technology, Healthcare, Economics, Education>",
   "entities": ["<key entity 1>", "<key entity 2>", ...],
-  "wasAmbiguous": <true | false>
+  "wasAmbiguous": <true | false>,
+  "continuationInstruction": "<short instruction summarizing how to extend/continuate the existing session context with the new query, e.g. 'Add payment system nodes to existing e-commerce plan', or empty string if not a continuation>"
 }
 
 Rules:
@@ -136,7 +148,19 @@ Rules:
 - modeConfidence: 0.9+ if very clear, 0.5-0.7 if somewhat clear, <0.5 if ambiguous`;
 
   try {
-    const raw = await callAgent(systemPrompt, `Raw query: "${trimmed}"\nUser selected mode: "${userSelectedMode}"`);
+    let userMessage = `Raw query: "${trimmed}"\nUser selected mode: "${userSelectedMode}"`;
+    if (existingContext) {
+      userMessage = `Existing session context:
+- Previous query: ${existingContext.previousQuery}
+- Mode: ${existingContext.mode}
+- Current nodes: ${existingContext.nodeSummaries.join(', ')}
+
+New query: ${trimmed}
+
+Note: This is a continuation. The user wants to EXTEND the existing plan/debate, not start over.`;
+    }
+
+    const raw = await callAgent(systemPrompt, userMessage);
 
     // Strip markdown fences if present
     const jsonStr = raw
@@ -152,6 +176,7 @@ Rules:
       domain?: string;
       entities?: string[];
       wasAmbiguous?: boolean;
+      continuationInstruction?: string;
     };
 
     const validModes: NexusMode[] = ["debate", "research", "plan", "code"];
@@ -173,6 +198,9 @@ Rules:
     const entityStr = entities.length > 0 ? ` Key concepts: ${entities.join(", ")}.` : "";
     const enrichedQuery = `${cleanQuery}\n\n[Context: ${intent}${entityStr}]`;
 
+    const isContinuation = !!existingContext;
+    const continuationInstruction = parsed.continuationInstruction ?? (isContinuation ? `Extend existing session with: ${cleanQuery}` : "");
+
     return {
       cleanQuery,
       detectedMode,
@@ -183,11 +211,13 @@ Rules:
       wasAmbiguous,
       originalQuery: rawQuery,
       enrichedQuery,
+      isContinuation,
+      continuationInstruction,
     };
   } catch (err) {
     console.error("[preprocessQuery] LLM parse failed, using fallback:", err);
     // Fast-mode fallback: use keyword detection + clean trimmed query
-    const fallback = buildFallback(trimmed, userSelectedMode);
+    const fallback = buildFallback(trimmed, userSelectedMode, !!existingContext);
     if (fastMode) {
       fallback.detectedMode = fastMode.mode;
       fallback.modeConfidence = fastMode.confidence;

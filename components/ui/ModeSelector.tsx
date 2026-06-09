@@ -7,7 +7,7 @@ import { NexusMode } from '@/types/nexus';
 export interface ModeSelectorProps {
   activeMode: NexusMode;
   onModeChange: (mode: NexusMode) => void;
-  onSubmit: (query: string) => void;
+  onSubmit: (query: string, isContinuation?: boolean) => void;
   isRunning: boolean;
   /** If set, shows a "NEXUS suggests <mode>" banner */
   suggestedMode?: NexusMode | null;
@@ -15,6 +15,10 @@ export interface ModeSelectorProps {
   onAcceptSuggestion?: (mode: NexusMode) => void;
   query?: string;
   onQueryChange?: (query: string) => void;
+
+  isContinuationReady?: boolean;
+  nodeCount?: number;
+  onClear?: () => void;
 }
 
 const placeholders: Record<NexusMode, string> = {
@@ -40,6 +44,9 @@ export default function ModeSelector({
   onAcceptSuggestion,
   query: controlledQuery,
   onQueryChange,
+  isContinuationReady = false,
+  nodeCount = 0,
+  onClear,
 }: ModeSelectorProps) {
   const [localQuery, setLocalQuery] = useState('');
   const query = controlledQuery !== undefined ? controlledQuery : localQuery;
@@ -47,6 +54,7 @@ export default function ModeSelector({
 
   const [isFocused, setIsFocused] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [hoveredNewSession, setHoveredNewSession] = useState(false);
 
   const modes: NexusMode[] = ['debate', 'research', 'code', 'plan'];
 
@@ -54,7 +62,7 @@ export default function ModeSelector({
     e.preventDefault();
     if (!query.trim() || isRunning) return;
     setBannerDismissed(false); // reset banner for next run
-    onSubmit(query);
+    onSubmit(query, isContinuationReady);
   };
 
   // Show the suggestion banner when:
@@ -64,6 +72,10 @@ export default function ModeSelector({
     !bannerDismissed &&
     !!suggestedMode &&
     suggestedMode !== activeMode;
+
+  const placeholderText = isContinuationReady
+    ? "Ask a follow-up... 'add payment system', 'make it mobile-first', 'what are the risks?'"
+    : placeholders[activeMode];
 
   return (
     <div className="w-full bg-transparent">
@@ -203,6 +215,23 @@ export default function ModeSelector({
           Query
         </div>
 
+        {/* Small continuation banner above input */}
+        {isContinuationReady && (
+          <div
+            style={{
+              background: 'rgba(127, 119, 221, 0.08)',
+              borderLeft: '2px solid var(--nx-synthesizer)',
+              padding: '6px 10px',
+              marginBottom: '8px',
+              fontFamily: '"DM Mono", monospace',
+              fontSize: '10px',
+              color: 'var(--nx-synthesizer)',
+            }}
+          >
+            ↳ SESSION ACTIVE — {nodeCount} nodes on canvas
+          </div>
+        )}
+
         {/* Textarea Area */}
         <div className="relative w-full">
           <textarea
@@ -227,7 +256,7 @@ export default function ModeSelector({
           <AnimatePresence mode="wait">
             {!query && (
               <motion.div
-                key={activeMode}
+                key={isContinuationReady ? 'continuation' : activeMode}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -243,7 +272,7 @@ export default function ModeSelector({
                   lineHeight: '1.6'
                 }}
               >
-                {placeholders[activeMode]}
+                {placeholderText}
               </motion.div>
             )}
           </AnimatePresence>
@@ -267,57 +296,165 @@ export default function ModeSelector({
           }
         `}</style>
 
-        {/* Run Button */}
-        <button
-          type="submit"
-          disabled={isRunning || !query.trim()}
-          className="w-full mt-2 py-2.5 select-none rounded-none cursor-pointer border transition-colors duration-150 uppercase flex items-center justify-center focus:outline-none"
-          style={
-            isRunning
-              ? {
-                  backgroundColor: 'transparent',
-                  borderColor: 'var(--nx-synthesizer)',
-                  color: 'var(--nx-synthesizer)',
-                  fontFamily: 'var(--nx-font-display), sans-serif',
-                  fontWeight: 700,
-                  fontSize: '12px',
-                  letterSpacing: '0.12em',
-                  cursor: 'not-allowed'
-                }
-              : {
-                  backgroundColor: 'transparent',
-                  borderColor: 'rgba(255, 255, 255, 0.5)',
-                  color: '#ffffff',
-                  fontFamily: 'var(--nx-font-display), sans-serif',
-                  fontWeight: 700,
-                  fontSize: '12px',
-                  letterSpacing: '0.12em',
-                  cursor: query.trim() ? 'pointer' : 'not-allowed',
-                  opacity: query.trim() ? 1.0 : 0.5
-                }
-          }
-          onMouseEnter={(e) => {
-            if (!isRunning && query.trim()) {
-              e.currentTarget.style.backgroundColor = '#ffffff';
-              e.currentTarget.style.color = '#0A0A0F';
+        {/* Run Button / Continuation Buttons */}
+        {!isContinuationReady ? (
+          <button
+            type="submit"
+            disabled={isRunning || !query.trim()}
+            className="w-full mt-2 py-2.5 select-none rounded-none cursor-pointer border transition-colors duration-150 uppercase flex items-center justify-center focus:outline-none"
+            style={
+              isRunning
+                ? {
+                    backgroundColor: 'transparent',
+                    borderColor: 'var(--nx-synthesizer)',
+                    color: 'var(--nx-synthesizer)',
+                    fontFamily: 'var(--nx-font-display), sans-serif',
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    letterSpacing: '0.12em',
+                    cursor: 'not-allowed'
+                  }
+                : {
+                    backgroundColor: 'transparent',
+                    borderColor: 'rgba(255, 255, 255, 0.5)',
+                    color: '#ffffff',
+                    fontFamily: 'var(--nx-font-display), sans-serif',
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    letterSpacing: '0.12em',
+                    cursor: query.trim() ? 'pointer' : 'not-allowed',
+                    opacity: query.trim() ? 1.0 : 0.5
+                  }
             }
-          }}
-          onMouseLeave={(e) => {
-            if (!isRunning) {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#ffffff';
-            }
-          }}
-        >
-          {isRunning ? (
-            <>
-              <span className="btn-pulse-dot" />
-              Running...
-            </>
-          ) : (
-            "Run Nexus"
-          )}
-        </button>
+            onMouseEnter={(e) => {
+              if (!isRunning && query.trim()) {
+                e.currentTarget.style.backgroundColor = '#ffffff';
+                e.currentTarget.style.color = '#0A0A0F';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isRunning) {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#ffffff';
+              }
+            }}
+          >
+            {isRunning ? (
+              <>
+                <span className="btn-pulse-dot" />
+                Running...
+              </>
+            ) : (
+              "Run Nexus"
+            )}
+          </button>
+        ) : isRunning ? (
+          <button
+            type="button"
+            disabled
+            className="w-full mt-2 py-2.5 select-none rounded-none border transition-colors duration-150 uppercase flex items-center justify-center focus:outline-none"
+            style={{
+              backgroundColor: 'transparent',
+              borderColor: 'var(--nx-synthesizer)',
+              color: 'var(--nx-synthesizer)',
+              fontFamily: 'var(--nx-font-display), sans-serif',
+              fontWeight: 700,
+              fontSize: '12px',
+              letterSpacing: '0.12em',
+              cursor: 'not-allowed'
+            }}
+          >
+            <span className="btn-pulse-dot" />
+            Running...
+          </button>
+        ) : (
+          <div className="flex gap-2 mt-2 w-full">
+            <button
+              type="button"
+              disabled={!query.trim()}
+              onClick={() => {
+                setBannerDismissed(false);
+                onSubmit(query, true);
+              }}
+              className="py-2.5 select-none rounded-none transition-colors duration-150 uppercase flex items-center justify-center focus:outline-none"
+              style={{
+                flex: 1,
+                backgroundColor: 'transparent',
+                border: '1px solid var(--nx-synthesizer)',
+                color: 'var(--nx-synthesizer)',
+                fontFamily: 'var(--nx-font-display), sans-serif',
+                fontWeight: 700,
+                fontSize: '12px',
+                letterSpacing: '0.12em',
+                cursor: query.trim() ? 'pointer' : 'not-allowed',
+                opacity: query.trim() ? 1.0 : 0.5
+              }}
+              onMouseEnter={(e) => {
+                if (query.trim()) {
+                  e.currentTarget.style.backgroundColor = 'var(--nx-synthesizer)';
+                  e.currentTarget.style.color = '#0A0A0F';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = 'var(--nx-synthesizer)';
+              }}
+            >
+              ↳ CONTINUE
+            </button>
+            <button
+              type="button"
+              disabled={!query.trim()}
+              onClick={() => {
+                setBannerDismissed(false);
+                onClear?.();
+                onSubmit(query, false);
+              }}
+              onMouseEnter={(e) => {
+                setHoveredNewSession(true);
+                if (query.trim()) {
+                  e.currentTarget.style.borderColor = 'var(--nx-border-hover)';
+                  e.currentTarget.style.color = '#ffffff';
+                }
+              }}
+              onMouseLeave={(e) => {
+                setHoveredNewSession(false);
+                e.currentTarget.style.borderColor = 'var(--nx-border)';
+                e.currentTarget.style.color = 'var(--nx-text-muted)';
+              }}
+              title="This will clear the current graph"
+              className="py-2.5 select-none rounded-none transition-colors duration-150 uppercase flex items-center justify-center focus:outline-none"
+              style={{
+                flex: 1,
+                backgroundColor: 'transparent',
+                border: '1px solid var(--nx-border)',
+                color: 'var(--nx-text-muted)',
+                fontFamily: 'var(--nx-font-display), sans-serif',
+                fontWeight: 700,
+                fontSize: '12px',
+                letterSpacing: '0.12em',
+                cursor: query.trim() ? 'pointer' : 'not-allowed',
+                opacity: query.trim() ? 1.0 : 0.5
+              }}
+            >
+              NEW SESSION
+            </button>
+          </div>
+        )}
+
+        {hoveredNewSession && query.trim() && (
+          <div
+            style={{
+              fontFamily: 'var(--nx-font-mono), monospace',
+              fontSize: '9px',
+              color: '#E24B4A',
+              textAlign: 'center',
+              marginTop: '6px',
+            }}
+          >
+            Warning: This will clear the current graph
+          </div>
+        )}
 
         {/* Hint footer text */}
         <div

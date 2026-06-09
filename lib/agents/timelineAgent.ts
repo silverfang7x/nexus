@@ -4,9 +4,10 @@ import crypto from 'crypto';
 
 export async function runTimelineAgent(
   query: string,
-  onEvent: (event: AgentEvent) => void
+  onEvent: (event: AgentEvent) => void,
+  systemPromptPrefix?: string
 ): Promise<string> {
-  const systemPrompt = `You are a project manager. Create a 4-week build timeline 
+  let systemPrompt = `You are a project manager. Create a 4-week build timeline 
 for this app idea. One milestone per week.
 
 Format:
@@ -16,6 +17,10 @@ Week 3: [milestone title] — [one sentence]
 Week 4: [milestone title] — [one sentence]
 
 Only the timeline.`;
+
+  if (systemPromptPrefix) {
+    systemPrompt = `${systemPromptPrefix}\n\n${systemPrompt}`;
+  }
 
   let fullText = '';
 

@@ -5,9 +5,10 @@ import crypto from 'crypto';
 export async function runStackAgent(
   query: string,
   onEvent: (event: AgentEvent) => void,
-  coreProblemNodeId: string
+  coreProblemNodeId: string,
+  systemPromptPrefix?: string
 ): Promise<string> {
-  const systemPrompt = `You are a senior software architect. Given an app idea, 
+  let systemPrompt = `You are a senior software architect. Given an app idea, 
 recommend the optimal tech stack for a solo developer or 
 small team shipping in 2 weeks.
 
@@ -21,6 +22,10 @@ List EXACTLY 5 technology choices:
 Format: 
 1. [Technology] — [one sentence why]
 Only the list. Nothing else.`;
+
+  if (systemPromptPrefix) {
+    systemPrompt = `${systemPromptPrefix}\n\n${systemPrompt}`;
+  }
 
   let fullText = '';
 
