@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { NexusSession, clearSessions } from '@/lib/sessionStorage';
-import { NexusMode } from '@/types/nexus';
+import { clearSessions } from '@/lib/sessionStorage';
+import { NexusMode, NexusSession } from '@/types/nexus';
 
 interface SessionsDrawerProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ interface SessionsDrawerProps {
   onRestoreSession: (session: NexusSession) => void;
   currentSessionId: string | null;
   onClearAll: () => void;
+  onNewSession: () => void;
 }
 
 function getModeColor(mode: NexusMode): string {
@@ -44,8 +45,10 @@ export default function SessionsDrawer({
   onRestoreSession,
   currentSessionId,
   onClearAll,
+  onNewSession,
 }: SessionsDrawerProps) {
   const [confirmClear, setConfirmClear] = useState(false);
+  const [newSessionHovered, setNewSessionHovered] = useState(false);
 
   useEffect(() => {
     if (confirmClear) {
@@ -159,6 +162,60 @@ export default function SessionsDrawer({
               }}
               className="nx-thin-scroll"
             >
+              {/* NEW SESSION BUTTON */}
+              <button
+                type="button"
+                onClick={() => {
+                  onNewSession();
+                }}
+                onMouseEnter={() => setNewSessionHovered(true)}
+                onMouseLeave={() => setNewSessionHovered(false)}
+                style={{
+                  width: '100%',
+                  height: '40px',
+                  background: newSessionHovered ? 'rgba(127, 119, 221, 0.05)' : 'transparent',
+                  border: '1px solid var(--nx-border)',
+                  borderColor: newSessionHovered ? 'var(--nx-synthesizer)' : 'var(--nx-border)',
+                  color: newSessionHovered ? 'var(--nx-synthesizer)' : 'var(--nx-text-primary)',
+                  fontFamily: '"DM Mono", var(--nx-font-mono), monospace',
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  flexShrink: 0,
+                }}
+              >
+                <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span>
+                NEW SESSION
+              </button>
+
+              <div
+                style={{
+                  borderBottom: '1px solid var(--nx-border)',
+                  margin: '12px 0',
+                  flexShrink: 0,
+                }}
+              />
+
+              <div
+                style={{
+                  ...MONO,
+                  fontSize: '9px',
+                  color: 'var(--nx-text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  marginBottom: '8px',
+                  flexShrink: 0,
+                }}
+              >
+                HISTORY
+              </div>
+
               {sessions.length === 0 ? (
                 /* EMPTY STATE */
                 <div
@@ -234,7 +291,14 @@ export default function SessionsDrawer({
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {sessions.map((session) => {
                     const isActive = session.id === currentSessionId;
-                    const modeColor = getModeColor(session.mode);
+                    const primaryModeColor = getModeColor(session.primaryMode);
+
+                    const modesList: NexusMode[] = ['debate', 'research', 'code', 'plan'];
+                    const nonNullModes = modesList.filter(
+                      (m) => session.modes[m] !== null
+                    );
+                    const modeCount = nonNullModes.length;
+                    const totalNodes = nonNullModes.reduce((sum, m) => sum + (session.modes[m]?.nodes.length || 0), 0);
 
                     return (
                       <div
@@ -246,7 +310,7 @@ export default function SessionsDrawer({
                         style={{
                           background: 'var(--nx-surface)',
                           border: '1px solid var(--nx-border)',
-                          borderLeft: `3px solid ${modeColor}`,
+                          borderLeft: `3px solid ${primaryModeColor}`,
                           padding: '12px 14px',
                           marginBottom: '8px',
                           cursor: 'pointer',
@@ -291,7 +355,7 @@ export default function SessionsDrawer({
                                 width: '5px',
                                 height: '5px',
                                 borderRadius: '50%',
-                                background: modeColor,
+                                background: primaryModeColor,
                                 display: 'inline-block',
                               }}
                             />
@@ -304,7 +368,7 @@ export default function SessionsDrawer({
                                 letterSpacing: '0.05em',
                               }}
                             >
-                              {session.mode}
+                              {session.primaryMode}
                             </span>
                           </div>
                         </div>
@@ -324,8 +388,31 @@ export default function SessionsDrawer({
                             overflow: 'hidden',
                           }}
                         >
-                          {session.query}
+                          {session.primaryQuery}
                         </p>
+
+                        {/* Mode dots row */}
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', margin: '2px 0' }}>
+                          {modesList.map((mode) => {
+                            const hasData = session.modes[mode] !== null;
+                            const modeColor = getModeColor(mode);
+                            return (
+                              <span
+                                key={mode}
+                                style={{
+                                  width: '6px',
+                                  height: '6px',
+                                  borderRadius: '50%',
+                                  backgroundColor: hasData ? modeColor : 'transparent',
+                                  border: hasData ? `1px solid ${modeColor}` : '1px solid var(--nx-border)',
+                                  boxSizing: 'border-box',
+                                  display: 'inline-block',
+                                }}
+                                title={`${mode}: ${hasData ? 'explored' : 'not explored'}`}
+                              />
+                            );
+                          })}
+                        </div>
 
                         {/* Meta row */}
                         <span
@@ -335,7 +422,7 @@ export default function SessionsDrawer({
                             color: 'var(--nx-text-muted)',
                           }}
                         >
-                          {formatRelativeTime(session.timestamp)} · {session.nodes.length} nodes · {session.edges.length} edges
+                          {formatRelativeTime(session.timestamp)} · {modeCount} {modeCount === 1 ? 'mode' : 'modes'} · {totalNodes} nodes
                         </span>
                       </div>
                     );

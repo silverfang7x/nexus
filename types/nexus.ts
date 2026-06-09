@@ -69,15 +69,26 @@ export interface AgentEvent {
   timestamp: number;
 }
 
-export interface NexusSession {
-  id: string;
-  mode: NexusMode;
+export interface ModeSessionData {
   query: string;
   nodes: GraphNode[];
   edges: GraphEdge[];
-  events: AgentEvent[];
-  status: 'idle' | 'running' | 'complete' | 'error';
-  verdict?: string;
+  structuredOutput: unknown;
+  ranAt: number;                 // timestamp when this mode ran
+}
+
+export interface NexusSession {
+  id: string;
+  timestamp: number;
+  durationMs: number;
+  primaryMode: NexusMode;        // the mode that was active first
+  primaryQuery: string;          // query of the first mode run
+  modes: {
+    debate: ModeSessionData | null;
+    research: ModeSessionData | null;
+    code: ModeSessionData | null;
+    plan: ModeSessionData | null;
+  };
 }
 
 export interface AgentConfig {

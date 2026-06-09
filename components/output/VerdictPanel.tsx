@@ -82,7 +82,6 @@ const MUTED_LABEL: React.CSSProperties = {
   color: 'var(--nx-text-muted)',
   marginBottom: 6,
 };
-const SECTION: React.CSSProperties = { marginBottom: 20 };
 
 // ─── Shared sub-components ────────────────────────────────────────────────────
 
@@ -676,10 +675,6 @@ export default function VerdictPanel({
   nodeCount = 0,
   edgeCount = 0,
   isRunning = false,
-  query = '',
-  nodes = [],
-  session,
-  hasRun = true,
 }: VerdictPanelProps) {
   const verdict = typeof output === 'string' ? output : (output ? JSON.stringify(output) : '');
 

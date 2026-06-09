@@ -8,11 +8,11 @@ import ModeSelector from '@/components/ui/ModeSelector';
 import VerdictPanel from '@/components/output/VerdictPanel';
 import ExportButton from '@/components/output/ExportButton';
 import SessionsDrawer from '@/components/ui/SessionsDrawer';
-import { saveSession, getSessions, NexusSession } from '@/lib/sessionStorage';
+import { saveSession, getSessions } from '@/lib/sessionStorage';
 import { useAgentStream } from '@/hooks/useAgentStream';
 import { useGraph } from '@/hooks/useGraph';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { AgentId, NexusMode, GraphNode, AgentEvent, AllModeStates, createBlankModeState, ModeState } from '@/types/nexus';
+import { AgentId, NexusMode, GraphNode, AgentEvent, AllModeStates, createBlankModeState, ModeState, NexusSession } from '@/types/nexus';
 import { getAgentColor } from '@/components/canvas/GraphNode';
 import NodeDetailPanel from '@/components/canvas/NodeDetailPanel';
 import { CanvasLoader } from '@/components/canvas/CanvasLoader';
@@ -329,15 +329,7 @@ export default function Dashboard() {
 
   const isMobile = useMediaQuery('(max-width: 767px)');
 
-  const [sessionNum, setSessionNum] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('nx-session-count');
-      if (stored) return parseInt(stored, 10);
-      localStorage.setItem('nx-session-count', '1');
-      return 1;
-    }
-    return 1;
-  });
+
   const [timeString, setTimeString] = useState('');
   const [agentsOpen, setAgentsOpen] = useState(false);
   const [outputOpen, setOutputOpen] = useState(false);
@@ -415,79 +407,56 @@ export default function Dashboard() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [graphScale, setGraphScale] = useState(1);
   const [sessionsDrawerOpen, setSessionsDrawerOpen] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
+
+  const sessionStartRef = useRef<number>(0);
 
   useEffect(() => {
-    if (sessionsDrawerOpen) {
+    sessionStartRef.current = Date.now();
+  }, []);
+
+  const handleOpenSessionsDrawer = () => {
+    setSessions(getSessions());
+    setSessionsDrawerOpen(true);
+  };
+
+  const handleNewSession = () => {
+    const anyModeHasRun = Object.values(modeStates).some(state => state.hasRun);
+    if (anyModeHasRun) {
+      saveSession(modeStates, activeMode, sessionStartRef.current);
       setSessions(getSessions());
+      setActiveSessionId('001');
     }
-  }, [sessionsDrawerOpen]);
 
-  const startTimestampRef = useRef<Record<NexusMode, number>>({
-    debate: 0,
-    research: 0,
-    code: 0,
-    plan: 0
-  });
-  const [runsInProgress, setRunsInProgress] = useState<Record<NexusMode, boolean>>({
-    debate: false,
-    research: false,
-    code: false,
-    plan: false
-  });
-
-  // Save session when run completes
-  useEffect(() => {
-    const modes: NexusMode[] = ['debate', 'research', 'code', 'plan'];
-    const streams = {
-      debate: debateStream,
-      research: researchStream,
-      code: codeStream,
-      plan: planStream
-    };
-
-    modes.forEach(mode => {
-      const stream = streams[mode];
-      if (stream.status === 'complete' && runsInProgress[mode]) {
-        setRunsInProgress(prev => ({ ...prev, [mode]: false }));
-        const durationMs = Date.now() - startTimestampRef.current[mode];
-        const newSession: NexusSession = {
-          id: '', // to be assigned by saveSession
-          mode: mode,
-          query: stream.query,
-          cleanQuery: stream.processedQuery?.cleanQuery || stream.query,
-          nodes: stream.nodes,
-          edges: stream.edges,
-          structuredOutput: stream.verdict,
-          timestamp: Date.now(),
-          durationMs
-        };
-        saveSession(newSession);
-        const updated = getSessions();
-        setSessions(updated);
-        setActiveSessionId('001'); // newly saved is always the most recent (001)
-      }
+    setModeStates({
+      debate: createBlankModeState(),
+      research: createBlankModeState(),
+      code: createBlankModeState(),
+      plan: createBlankModeState()
     });
-  }, [
-    debateStream,
-    researchStream,
-    codeStream,
-    planStream,
-    runsInProgress
-  ]);
+
+    sessionStartRef.current = Date.now();
+    setActiveMode('debate');
+    setSessionsDrawerOpen(false);
+    setIsDemoMode(false);
+
+    setGraphScale(0.97);
+    setTimeout(() => setGraphScale(1), 300);
+  };
 
   const handleQuerySubmit = (submittedQuery: string, isContinuation = false, forceMock = false) => {
-    const isMock = forceMock || submittedQuery.includes('--mock');
+    const isMock = forceMock || isDemoMode || submittedQuery.includes('--mock');
     const clean = submittedQuery.replace('--mock', '').trim();
     
-    // eslint-disable-next-line react-hooks/purity
-    startTimestampRef.current[activeMode] = Date.now();
-    setRunsInProgress(prev => ({ ...prev, [activeMode]: true }));
+    if (!isMock) {
+      setIsDemoMode(false);
+    }
+
     setActiveSessionId(null);
     updateModeState(activeMode, () => ({ query: clean }));
 
     const nextNum = parseInt(localStorage.getItem('nx-session-count') || '0', 10) + 1;
     localStorage.setItem('nx-session-count', String(nextNum));
-    setSessionNum(nextNum);
     
     startStream(clean, isMock, isContinuation);
   };
@@ -514,21 +483,64 @@ export default function Dashboard() {
 
   // Handle restoring a session
   const handleRestoreSession = (session: NexusSession) => {
-    const targetMode = session.mode;
+    const newModeStates = {
+      debate: createBlankModeState(),
+      research: createBlankModeState(),
+      code: createBlankModeState(),
+      plan: createBlankModeState()
+    };
+
+    const modes: NexusMode[] = ['debate', 'research', 'code', 'plan'];
+    modes.forEach(mode => {
+      const data = session.modes[mode];
+      if (data) {
+        newModeStates[mode] = {
+          ...createBlankModeState(),
+          query: data.query,
+          nodes: data.nodes,
+          edges: data.edges,
+          structuredOutput: data.structuredOutput,
+          hasRun: true,
+          isRunning: false
+        };
+      }
+    });
+
+    setModeStates(newModeStates);
+    setActiveMode(session.primaryMode);
+
     const streams = {
       debate: debateStream,
       research: researchStream,
       code: codeStream,
       plan: planStream
     };
-    streams[targetMode].restoreStream(session);
+    modes.forEach(mode => {
+      const data = session.modes[mode];
+      if (data) {
+        streams[mode].restoreStream({
+          query: data.query,
+          nodes: data.nodes,
+          edges: data.edges,
+          structuredOutput: data.structuredOutput,
+          mode
+        });
+      } else {
+        streams[mode].clearStream();
+      }
+    });
 
     setActiveSessionId(session.id);
-    setActiveMode(session.mode);
+    setIsDemoMode(false);
 
     // Apply scale flash effect
     setGraphScale(0.97);
     setTimeout(() => setGraphScale(1), 150);
+  };
+
+  const handleModeChange = (newMode: NexusMode) => {
+    setActiveMode(newMode);
+    setIsDemoMode(false);
   };
 
   const closeAll = useCallback(() => {
@@ -638,7 +650,7 @@ export default function Dashboard() {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '0 16px 16px' }}>
       <ModeSelector
         activeMode={activeMode}
-        onModeChange={setActiveMode}
+        onModeChange={handleModeChange}
         onSubmit={(q, isCont) => {
           handleQuerySubmit(q, isCont);
           setOutputOpen(false);
@@ -708,37 +720,51 @@ export default function Dashboard() {
 
   // ── DEMO button ──────────────────────────────────────────────────────────
 
+  const [demoHovered, setDemoHovered] = useState(false);
+
+  const handleToggleDemoMode = () => {
+    if (status === 'running') return;
+    
+    const nextDemoMode = !isDemoMode;
+    setIsDemoMode(nextDemoMode);
+
+    if (nextDemoMode) {
+      const scenario = DEMO_QUERIES[activeMode];
+      if (scenario) {
+        handleQuerySubmit(scenario.query, false, true);
+      }
+    } else {
+      clearSession();
+    }
+  };
+
   const DemoButton = (
     <button
       type="button"
       disabled={status === 'running'}
-      onClick={() => {
-        const scenario = DEMO_QUERIES[activeMode];
-        if (scenario) {
-          handleQuerySubmit(scenario.query, false, true);
-        }
-      }}
+      onClick={handleToggleDemoMode}
+      onMouseEnter={() => setDemoHovered(true)}
+      onMouseLeave={() => setDemoHovered(false)}
       title={DEMO_QUERIES[activeMode]?.label || 'Run Scenario'}
       style={{
         fontFamily: 'var(--nx-font-mono), monospace',
-        fontSize: 10,
-        padding: '4px 10px',
+        fontSize: '10px',
+        padding: '5px 10px',
         border: '1px solid var(--nx-border)',
-        background: 'rgba(255,255,255,0.02)',
-        color: '#fff',
+        borderColor: isDemoMode 
+          ? 'var(--nx-synthesizer)' 
+          : (demoHovered ? 'var(--nx-border-hover)' : 'var(--nx-border)'),
+        background: isDemoMode 
+          ? 'rgba(127, 119, 221, 0.1)' 
+          : (demoHovered ? 'var(--nx-surface)' : 'transparent'),
+        color: isDemoMode 
+          ? 'var(--nx-synthesizer)' 
+          : '#fff',
         cursor: status === 'running' ? 'not-allowed' : 'pointer',
         opacity: status === 'running' ? 0.45 : 1,
         borderRadius: 0,
-        transition: 'background 150ms',
-      }}
-      onMouseEnter={(e) => {
-        if (status !== 'running')
-          (e.currentTarget as HTMLButtonElement).style.background =
-            'rgba(255,255,255,0.08)';
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.background =
-          'rgba(255,255,255,0.02)';
+        transition: 'all 150ms ease',
+        textTransform: 'uppercase',
       }}
     >
       DEMO
@@ -877,7 +903,7 @@ export default function Dashboard() {
               {DemoButton}
               <button
                 type="button"
-                onClick={() => setSessionsDrawerOpen(true)}
+                onClick={handleOpenSessionsDrawer}
                 className="sessions-btn"
                 style={{ border: 'none', padding: '4px 8px' }}
               >
@@ -1093,8 +1119,8 @@ export default function Dashboard() {
               {/* LEFT: nothing */}
               <div />
 
-              {/* RIGHT: Two items side by side */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              {/* RIGHT: Three items side by side */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {/* 1. Mode + Status Indicator */}
                 <div
                   style={{
@@ -1103,6 +1129,7 @@ export default function Dashboard() {
                     gap: 12,
                     fontFamily: 'var(--nx-font-mono), monospace',
                     fontSize: 10,
+                    marginRight: 8,
                   }}
                 >
                   {/* Mode */}
@@ -1140,10 +1167,13 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* 2. SESSIONS button */}
+                {/* 2. DEMO button */}
+                {DemoButton}
+
+                {/* 3. SESSIONS button */}
                 <button
                   type="button"
-                  onClick={() => setSessionsDrawerOpen(true)}
+                  onClick={handleOpenSessionsDrawer}
                   className="sessions-btn"
                 >
                   {/* 3-line Stack Icon */}
@@ -1179,7 +1209,7 @@ export default function Dashboard() {
             <div style={{ padding: 16, flexShrink: 0 }}>
               <ModeSelector
                 activeMode={activeMode}
-                onModeChange={setActiveMode}
+                onModeChange={handleModeChange}
                 onSubmit={handleQuerySubmit}
                 isRunning={status === 'running'}
                 suggestedMode={
@@ -1411,6 +1441,7 @@ export default function Dashboard() {
         onRestoreSession={handleRestoreSession}
         currentSessionId={activeSessionId}
         onClearAll={() => setSessions([])}
+        onNewSession={handleNewSession}
       />
     </div>
   );
