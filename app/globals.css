@@ -45,6 +45,7 @@
   --nx-codeanalyst: #378ADD;
   --nx-synthesizer: #7F77DD;
   --nx-orchestrator: #888780;
+  --nx-plan-color: #DAA520;
 
   /* === AGENT GLOWS (for box-shadow use) === */
   --nx-glow-advocate: 0 0 24px rgba(232, 89, 60, 0.30);
@@ -400,4 +401,23 @@ body > * {
 .output-scroll-panel::-webkit-scrollbar-thumb:hover {
   background: var(--nx-border-hover);
 }
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-line {
+  background: linear-gradient(
+    90deg,
+    var(--nx-border) 25%,
+    var(--nx-border-hover) 50%,
+    var(--nx-border) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 2px;
+  height: 10px;
+}
+
 

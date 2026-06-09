@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { NexusMode, GraphNode, GraphEdge } from '@/types/nexus';
-
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,9 +71,12 @@ interface CodeOutput {
 // ─── Styling constants ────────────────────────────────────────────────────────
 
 const MONO: React.CSSProperties = { fontFamily: 'var(--nx-font-mono), monospace' };
+const PLAN_COLOR = 'var(--nx-plan-color, #DAA520)';
+
 const MUTED_LABEL: React.CSSProperties = {
   ...MONO,
   fontSize: '9px',
+  fontWeight: 600,
   letterSpacing: '0.12em',
   textTransform: 'uppercase' as const,
   color: 'var(--nx-text-muted)',
@@ -84,28 +86,114 @@ const SECTION: React.CSSProperties = { marginBottom: 20 };
 
 // ─── Shared sub-components ────────────────────────────────────────────────────
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p style={MUTED_LABEL}>{children}</p>;
+interface SectionProps {
+  label: string;
+  children: React.ReactNode;
+  isLast?: boolean;
+  labelColor?: string;
+  extraLabelText?: string;
 }
 
-function TldrBlock({ text }: { text: string }) {
+function Section({ label, children, isLast = false, labelColor, extraLabelText }: SectionProps) {
   return (
-    <div style={{ ...SECTION, borderLeft: '2px solid var(--nx-synthesizer)', paddingLeft: 10 }}>
-      <SectionLabel>TLDR</SectionLabel>
-      <p style={{ ...MONO, fontSize: 14, color: 'var(--nx-synthesizer)', lineHeight: 1.5, margin: 0 }}>
-        {text}
-      </p>
+    <div
+      style={{
+        marginBottom: '20px',
+        paddingBottom: isLast ? '0' : '20px',
+        borderBottom: isLast ? 'none' : '1px solid var(--nx-border)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+        <p
+          style={{
+            ...MONO,
+            fontSize: '9px',
+            fontWeight: 600,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: labelColor || 'var(--nx-text-muted)',
+            margin: 0,
+          }}
+        >
+          {label}
+        </p>
+        {extraLabelText && (
+          <span style={{ ...MONO, fontSize: '9px', color: 'var(--nx-text-muted)' }}>
+            {extraLabelText}
+          </span>
+        )}
+      </div>
+      {children}
     </div>
   );
 }
 
-function VerdictBlock({ text }: { text: string }) {
+function TldrValue({ text }: { text: string }) {
   return (
-    <div style={SECTION}>
-      <SectionLabel>VERDICT</SectionLabel>
-      <p style={{ ...MONO, fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, margin: 0 }}>
-        {text}
-      </p>
+    <p
+      style={{
+        ...MONO,
+        fontSize: '15px',
+        fontWeight: 500,
+        color: 'var(--nx-synthesizer)',
+        lineHeight: 1.4,
+        margin: 0,
+        wordBreak: 'break-word',
+        overflowWrap: 'anywhere',
+      }}
+    >
+      {text}
+    </p>
+  );
+}
+
+function BodyText({ text, style }: { text: string; style?: React.CSSProperties }) {
+  return (
+    <p
+      style={{
+        ...MONO,
+        fontSize: '12px',
+        color: 'var(--nx-text-secondary)',
+        lineHeight: '1.7',
+        margin: 0,
+        wordBreak: 'break-word',
+        overflowWrap: 'anywhere',
+        ...style,
+      }}
+    >
+      {text}
+    </p>
+  );
+}
+
+interface ListItemRowProps {
+  children: React.ReactNode;
+  isLast?: boolean;
+  hoverBg?: string;
+  bg?: string;
+}
+
+function ListItemRow({ children, isLast = false, hoverBg, bg }: ListItemRowProps) {
+  const [hovered, setHovered] = useState(false);
+  const hasBackground = bg || (hovered && hoverBg);
+  return (
+    <div
+      onMouseEnter={() => hoverBg && setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '8px',
+        padding: hasBackground ? '5px 8px' : '5px 0',
+        fontSize: '12px',
+        lineHeight: 1.5,
+        fontFamily: 'var(--nx-font-mono), monospace',
+        borderBottom: isLast ? 'none' : '1px solid rgba(255, 255, 255, 0.04)',
+        background: hovered && hoverBg ? hoverBg : (bg || 'transparent'),
+        transition: 'background 150ms',
+      }}
+    >
+      {children}
     </div>
   );
 }
@@ -114,123 +202,185 @@ function VerdictBlock({ text }: { text: string }) {
 
 function DebateView({ data }: { data: DebateOutput }) {
   const confidence = Math.min(Math.max(data.confidence ?? 0, 0), 1);
+  const [barWidth, setBarWidth] = useState(0);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setBarWidth(confidence * 100);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [confidence]);
+
+  const forPoints = data.for ?? [];
+  const againstPoints = data.against ?? [];
+
   return (
     <>
-      <TldrBlock text={data.tldr} />
+      <Section label="TLDR">
+        <TldrValue text={data.tldr} />
+      </Section>
 
-      {/* FOR */}
-      <div style={SECTION}>
-        <SectionLabel>FOR</SectionLabel>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {(data.for ?? []).map((point, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-              <span style={{ ...MONO, fontSize: 11, color: 'var(--nx-advocate)', flexShrink: 0, marginTop: 1 }}>→</span>
-              <span style={{ ...MONO, fontSize: 11, color: 'var(--nx-advocate)', lineHeight: 1.55, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{point}</span>
-            </div>
+      <Section label="FOR" labelColor="var(--nx-advocate)">
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {forPoints.map((point, i) => (
+            <ListItemRow key={i} isLast={i === forPoints.length - 1} hoverBg="rgba(232, 89, 60, 0.04)">
+              <span style={{ ...MONO, color: 'var(--nx-advocate)', flexShrink: 0 }}>→</span>
+              <span style={{ ...MONO, color: 'var(--nx-text-secondary)', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                {point}
+              </span>
+            </ListItemRow>
           ))}
         </div>
-      </div>
+      </Section>
 
-      {/* AGAINST */}
-      <div style={SECTION}>
-        <SectionLabel>AGAINST</SectionLabel>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {(data.against ?? []).map((point, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-              <span style={{ ...MONO, fontSize: 11, color: 'var(--nx-challenger)', flexShrink: 0, marginTop: 1 }}>→</span>
-              <span style={{ ...MONO, fontSize: 11, color: 'var(--nx-challenger)', lineHeight: 1.55, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{point}</span>
-            </div>
+      <Section label="AGAINST" labelColor="var(--nx-challenger)">
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {againstPoints.map((point, i) => (
+            <ListItemRow key={i} isLast={i === againstPoints.length - 1}>
+              <span style={{ ...MONO, color: 'var(--nx-challenger)', flexShrink: 0 }}>→</span>
+              <span style={{ ...MONO, color: 'var(--nx-text-secondary)', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                {point}
+              </span>
+            </ListItemRow>
           ))}
         </div>
-      </div>
+      </Section>
 
-      <VerdictBlock text={data.verdict} />
+      <Section label="VERDICT" isLast={confidence === undefined || confidence === null}>
+        <div
+          style={{
+            borderLeft: '2px solid var(--nx-synthesizer)',
+            paddingLeft: '10px',
+          }}
+        >
+          <BodyText text={data.verdict} style={{ fontSize: '13px', color: 'var(--nx-text-primary)' }} />
+        </div>
+      </Section>
 
-      {/* Confidence bar */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-          <SectionLabel>CONFIDENCE</SectionLabel>
-          <span style={{ ...MONO, fontSize: 9, color: 'var(--nx-synthesizer)' }}>
-            {Math.round(confidence * 100)}%
-          </span>
+      {confidence !== undefined && confidence !== null && (
+        <div style={{ marginTop: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+            <p
+              style={{
+                ...MONO,
+                fontSize: '9px',
+                fontWeight: 600,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: 'var(--nx-text-muted)',
+                margin: 0,
+              }}
+            >
+              CONFIDENCE
+            </p>
+            <span style={{ ...MONO, fontSize: '9px', color: 'var(--nx-synthesizer)', fontWeight: 600 }}>
+              {Math.round(confidence * 100)}%
+            </span>
+          </div>
+          <div style={{ height: '2px', background: 'var(--nx-border)', width: '100%', overflow: 'hidden' }}>
+            <div
+              style={{
+                height: '100%',
+                width: `${barWidth}%`,
+                background: 'var(--nx-synthesizer)',
+                transition: 'width 0.6s ease',
+              }}
+            />
+          </div>
         </div>
-        <div style={{ height: 3, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
-          <div
-            style={{
-              height: '100%',
-              width: `${confidence * 100}%`,
-              background: 'var(--nx-synthesizer)',
-              transition: 'width 0.6s ease-out',
-            }}
-          />
-        </div>
-      </div>
+      )}
     </>
   );
 }
 
 function ResearchView({ data }: { data: ResearchOutput }) {
+  const findings = data.findings ?? [];
+  const contradictions = data.contradictions ?? [];
+
   return (
     <>
-      <TldrBlock text={data.tldr} />
+      <Section label="TLDR">
+        <TldrValue text={data.tldr} />
+      </Section>
 
-      {/* FINDINGS */}
-      <div style={SECTION}>
-        <SectionLabel>FINDINGS</SectionLabel>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {(data.findings ?? []).map((f, i) => (
-            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: '50%',
-                  background: f.verified ? 'var(--nx-factchecker)' : '#D4A017',
-                  flexShrink: 0,
-                  marginTop: 4,
-                }}
-              />
-              <div>
-                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.82)', lineHeight: 1.55, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+      <Section label="FINDINGS">
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {findings.map((f, i) => (
+            <div
+              key={i}
+              style={{
+                background: 'var(--nx-surface)',
+                border: '1px solid var(--nx-border)',
+                padding: '8px 10px',
+                borderRadius: '0',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+                marginBottom: '6px',
+              }}
+            >
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <span
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    background: f.verified ? 'var(--nx-factchecker)' : '#DAA520',
+                    flexShrink: 0,
+                    marginTop: '6px',
+                  }}
+                />
+                <span style={{ ...MONO, fontSize: '12px', color: 'var(--nx-text-secondary)', lineHeight: '1.7', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                   {f.claim}
                 </span>
-                {f.source && (
-                  <div style={{ ...MONO, fontSize: 9, color: 'var(--nx-text-muted)', marginTop: 2, wordBreak: 'break-all' }}>
-                    {f.source}
-                  </div>
-                )}
               </div>
+              {f.source && (
+                <div style={{ ...MONO, fontSize: '10px', color: 'var(--nx-text-muted)', paddingLeft: '14px', wordBreak: 'break-all' }}>
+                  {f.source}
+                </div>
+              )}
             </div>
           ))}
         </div>
-      </div>
+      </Section>
 
-      {/* CONTRADICTIONS */}
-      {(data.contradictions ?? []).length > 0 && (
-        <div style={SECTION}>
-          <SectionLabel>CONTRADICTIONS</SectionLabel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {data.contradictions.map((c, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <span style={{ ...MONO, fontSize: 11, color: '#E24B4A', flexShrink: 0, marginTop: 1 }}>✗</span>
-                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.65)', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{c}</span>
-              </div>
+      {contradictions.length > 0 && (
+        <Section label="CONTRADICTIONS">
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {contradictions.map((c, i) => (
+              <ListItemRow key={i} isLast={i === contradictions.length - 1}>
+                <span style={{ ...MONO, color: 'var(--nx-challenger)', flexShrink: 0 }}>✕</span>
+                <span style={{ ...MONO, color: 'var(--nx-text-secondary)', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                  {c}
+                </span>
+              </ListItemRow>
             ))}
           </div>
-        </div>
+        </Section>
       )}
 
-      {/* CONSENSUS */}
       {data.consensus && (
-        <div style={SECTION}>
-          <SectionLabel>CONSENSUS</SectionLabel>
-          <p style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6, margin: 0 }}>
+        <Section label="CONSENSUS">
+          <p
+            style={{
+              ...MONO,
+              fontSize: '13px',
+              fontStyle: 'italic',
+              color: 'var(--nx-text-secondary)',
+              lineHeight: '1.7',
+              margin: 0,
+              wordBreak: 'break-word',
+              overflowWrap: 'anywhere',
+            }}
+          >
             {data.consensus}
           </p>
-        </div>
+        </Section>
       )}
 
-      <VerdictBlock text={data.verdict} />
+      <Section label="VERDICT" isLast={true}>
+        <BodyText text={data.verdict} />
+      </Section>
     </>
   );
 }
@@ -243,29 +393,36 @@ function PlanView({ data }: { data: PlanOutput }) {
     { label: 'HOSTING', key: 'hosting' },
   ];
 
+  const features = data.features ?? [];
+  const risks = data.risks ?? [];
+  const timeline = data.timeline ?? [];
+
   return (
     <>
-      <TldrBlock text={data.tldr} />
+      <Section label="TLDR">
+        <TldrValue text={data.tldr} />
+      </Section>
 
-      {/* PROBLEM */}
       {data.problem && (
-        <div style={SECTION}>
-          <SectionLabel>PROBLEM</SectionLabel>
-          <p style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6, margin: 0, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-            {data.problem}
-          </p>
-        </div>
+        <Section label="PROBLEM">
+          <div
+            style={{
+              borderLeft: `2px solid ${PLAN_COLOR}`,
+              paddingLeft: '10px',
+            }}
+          >
+            <BodyText text={data.problem} />
+          </div>
+        </Section>
       )}
 
-      {/* STACK GRID */}
       {data.stack && (
-        <div style={SECTION}>
-          <SectionLabel>TECH STACK</SectionLabel>
+        <Section label="TECH STACK">
           <div
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
-              gap: 8,
+              gap: '8px',
             }}
           >
             {stackEntries.map(({ label, key }) => (
@@ -273,112 +430,94 @@ function PlanView({ data }: { data: PlanOutput }) {
                 key={key}
                 style={{
                   border: '1px solid var(--nx-border)',
-                  padding: '8px 10px',
-                  background: 'rgba(255,255,255,0.02)',
+                  padding: '10px 12px',
+                  background: 'var(--nx-surface)',
                 }}
               >
-                <div style={{ ...MONO, fontSize: 8, color: 'var(--nx-text-muted)', letterSpacing: '0.1em', marginBottom: 4 }}>
+                <div style={{ ...MONO, fontSize: '9px', color: 'var(--nx-text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '4px' }}>
                   {label}
                 </div>
-                <div style={{ ...MONO, fontSize: 13, color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>
+                <div style={{ ...MONO, fontSize: '14px', color: 'var(--nx-text-primary)', fontWeight: 600 }}>
                   {data.stack[key] || '—'}
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </Section>
       )}
 
-      {/* FEATURES */}
-      {(data.features ?? []).length > 0 && (
-        <div style={SECTION}>
-          <SectionLabel>FEATURES</SectionLabel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {data.features.map((f, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <span style={{ ...MONO, fontSize: 10, color: 'var(--nx-synthesizer)', flexShrink: 0, minWidth: 16 }}>
+      {features.length > 0 && (
+        <Section label="FEATURES">
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {features.map((f, i) => (
+              <ListItemRow key={i} isLast={i === features.length - 1}>
+                <span style={{ ...MONO, fontWeight: 'bold', color: PLAN_COLOR, flexShrink: 0, minWidth: '16px' }}>
                   {i + 1}.
                 </span>
-                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.78)', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{f}</span>
-              </div>
+                <span style={{ ...MONO, color: 'var(--nx-text-secondary)', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                  {f}
+                </span>
+              </ListItemRow>
             ))}
           </div>
-        </div>
+        </Section>
       )}
 
-      {/* RISKS */}
-      {(data.risks ?? []).length > 0 && (
-        <div style={SECTION}>
-          <SectionLabel>RISKS</SectionLabel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {data.risks.map((r, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 11, flexShrink: 0, marginTop: 1 }}>⚠</span>
-                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.72)', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{r}</span>
-              </div>
+      {risks.length > 0 && (
+        <Section label="RISKS">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {risks.map((r, i) => (
+              <ListItemRow key={i} isLast={i === risks.length - 1} bg="rgba(218, 165, 32, 0.05)">
+                <span style={{ color: PLAN_COLOR, flexShrink: 0 }}>⚠</span>
+                <span style={{ ...MONO, color: 'var(--nx-text-secondary)', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                  {r}
+                </span>
+              </ListItemRow>
             ))}
           </div>
-        </div>
+        </Section>
       )}
 
-      {/* TIMELINE */}
-      {(data.timeline ?? []).length > 0 && (
-        <div style={{ ...SECTION }}>
-          <SectionLabel>TIMELINE</SectionLabel>
-          <div style={{ position: 'relative', paddingTop: 8, paddingBottom: 24 }}>
-            {/* Connector line */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 19,
-                left: 12,
-                right: 12,
-                height: 1,
-                background: 'rgba(255,255,255,0.1)',
-              }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
-              {data.timeline.map((t, i) => (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                  {/* Week node dot */}
-                  <div
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: '50%',
-                      border: '1px solid var(--nx-synthesizer)',
-                      background: 'var(--nx-bg)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: 6,
-                      flexShrink: 0,
-                    }}
-                  >
-                    <span style={{ ...MONO, fontSize: 8, color: 'var(--nx-synthesizer)' }}>W{t.week}</span>
-                  </div>
-                  {/* Milestone label */}
-                  <span
-                    style={{
-                      ...MONO,
-                      fontSize: 8,
-                      color: 'rgba(255,255,255,0.55)',
-                      textAlign: 'center',
-                      lineHeight: 1.4,
-                      maxWidth: 70,
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    {t.milestone}
-                  </span>
+      {timeline.length > 0 && (
+        <Section label="TIMELINE">
+          <div style={{ display: 'flex', flexDirection: 'column', position: 'relative', paddingLeft: '12px', paddingTop: '8px' }}>
+            {/* Connecting line */}
+            <div style={{
+              position: 'absolute',
+              left: '22px',
+              top: '20px',
+              bottom: '20px',
+              width: '1px',
+              borderLeft: '1px solid var(--nx-border)',
+              zIndex: 0,
+            }} />
+            {timeline.map((t, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: i === timeline.length - 1 ? 0 : '16px', position: 'relative', zIndex: 1 }}>
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  border: `1px solid ${PLAN_COLOR}`,
+                  background: 'var(--nx-bg)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  <span style={{ ...MONO, fontSize: '8px', color: PLAN_COLOR, fontWeight: 'bold' }}>W{t.week}</span>
                 </div>
-              ))}
-            </div>
+                <span style={{ ...MONO, fontSize: '11px', color: 'var(--nx-text-secondary)', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                  {t.milestone}
+                </span>
+              </div>
+            ))}
           </div>
-        </div>
+        </Section>
       )}
 
-      <VerdictBlock text={data.verdict} />
+      <Section label="VERDICT" isLast={true}>
+        <BodyText text={data.verdict} />
+      </Section>
     </>
   );
 }
@@ -386,114 +525,96 @@ function PlanView({ data }: { data: PlanOutput }) {
 function CodeView({ data }: { data: CodeOutput }) {
   const severityColor = (s: CodeIssue['severity']) => {
     if (s === 'high') return '#E24B4A';
-    if (s === 'medium') return '#D4A017';
-    return 'rgba(255,255,255,0.35)';
+    if (s === 'medium') return '#DAA520';
+    return 'var(--nx-text-muted)';
   };
+
+  const severityBg = (s: CodeIssue['severity']) => {
+    if (s === 'high') return 'rgba(226, 75, 74, 0.15)';
+    if (s === 'medium') return 'rgba(218, 165, 32, 0.15)';
+    return 'rgba(255, 255, 255, 0.1)';
+  };
+
+  const severityBorder = (s: CodeIssue['severity']) => {
+    if (s === 'high') return '1px solid #E24B4A';
+    if (s === 'medium') return '1px solid #DAA520';
+    return '1px solid transparent';
+  };
+
+  const issues = data.issuesFound ?? [];
+  const suggestions = data.suggestions ?? [];
 
   return (
     <>
-      <TldrBlock text={data.tldr} />
+      <Section label="TLDR" extraLabelText={data.filesAnalysed ? `${data.filesAnalysed} files analysed` : undefined}>
+        <TldrValue text={data.tldr} />
+      </Section>
 
-      {/* Files analysed stat */}
-      {data.filesAnalysed != null && (
-        <div style={{ ...SECTION, display: 'flex', gap: 16, alignItems: 'center' }}>
-          <span style={{ ...MONO, fontSize: 9, color: 'var(--nx-text-muted)' }}>FILES ANALYSED</span>
-          <span style={{ ...MONO, fontSize: 22, color: 'rgba(255,255,255,0.85)', fontWeight: 700 }}>
-            {data.filesAnalysed}
-          </span>
-        </div>
-      )}
-
-      {/* ISSUES TABLE */}
-      {(data.issuesFound ?? []).length > 0 && (
-        <div style={SECTION}>
-          <SectionLabel>ISSUES FOUND</SectionLabel>
-          <div
-            className="code-issues-table"
-            style={{
-              border: '1px solid var(--nx-border)',
-              display: 'block',
-              overflowX: 'auto',
-              maxWidth: '100%',
-            }}
-          >
-            {/* Header */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 2fr 72px',
-                padding: '6px 10px',
-                borderBottom: '1px solid var(--nx-border)',
-                background: 'rgba(255,255,255,0.025)',
-              }}
-            >
-              {['FILE', 'ISSUE', 'SEVERITY'].map((h) => (
-                <span key={h} style={{ ...MONO, fontSize: 8, color: 'var(--nx-text-muted)', letterSpacing: '0.1em' }}>
-                  {h}
-                </span>
-              ))}
-            </div>
-            {/* Rows */}
-            {data.issuesFound.map((issue, i) => (
+      {issues.length > 0 && (
+        <Section label="ISSUES">
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {issues.map((issue, i) => (
               <div
                 key={i}
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 2fr 72px',
-                  padding: '7px 10px',
-                  borderBottom: i < data.issuesFound.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                  alignItems: 'start',
+                  background: 'var(--nx-surface)',
+                  border: '1px solid var(--nx-border)',
+                  padding: '8px 10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  marginBottom: '6px',
                 }}
               >
-                <span
-                  style={{
-                    ...MONO,
-                    fontSize: 10,
-                    color: 'rgba(255,255,255,0.5)',
-                    wordBreak: 'break-all',
-                    paddingRight: 6,
-                  }}
-                >
-                  {issue.file}
-                </span>
-                <span style={{ ...MONO, fontSize: 10, color: 'rgba(255,255,255,0.78)', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <span
+                    style={{
+                      ...MONO,
+                      fontSize: '7px',
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase',
+                      color: severityColor(issue.severity),
+                      background: severityBg(issue.severity),
+                      border: severityBorder(issue.severity),
+                      padding: '2px 5px',
+                      borderRadius: '2px',
+                    }}
+                  >
+                    {issue.severity}
+                  </span>
+                  <span style={{ ...MONO, fontSize: '11px', color: 'var(--nx-codeanalyst)', wordBreak: 'break-all' }}>
+                    {issue.file}
+                  </span>
+                </div>
+                <span style={{ ...MONO, fontSize: '12px', color: 'var(--nx-text-secondary)', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                   {issue.issue}
                 </span>
-                <span
-                  style={{
-                    ...MONO,
-                    fontSize: 9,
-                    color: severityColor(issue.severity),
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                  }}
-                >
-                  {issue.severity}
-                </span>
               </div>
             ))}
           </div>
-        </div>
+        </Section>
       )}
 
-      {/* SUGGESTIONS */}
-      {(data.suggestions ?? []).length > 0 && (
-        <div style={SECTION}>
-          <SectionLabel>SUGGESTIONS</SectionLabel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {data.suggestions.map((s, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <span style={{ ...MONO, fontSize: 10, color: 'var(--nx-synthesizer)', flexShrink: 0, minWidth: 16 }}>
+      {suggestions.length > 0 && (
+        <Section label="SUGGESTIONS">
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {suggestions.map((s, i) => (
+              <ListItemRow key={i} isLast={i === suggestions.length - 1}>
+                <span style={{ ...MONO, fontWeight: 'bold', color: 'var(--nx-codeanalyst)', flexShrink: 0, minWidth: '16px' }}>
                   {i + 1}.
                 </span>
-                <span style={{ ...MONO, fontSize: 11, color: 'rgba(255,255,255,0.78)', lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{s}</span>
-              </div>
+                <span style={{ ...MONO, color: 'var(--nx-text-secondary)', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                  {s}
+                </span>
+              </ListItemRow>
             ))}
           </div>
-        </div>
+        </Section>
       )}
 
-      <VerdictBlock text={data.verdict} />
+      <Section label="VERDICT" isLast={true}>
+        <BodyText text={data.verdict} />
+      </Section>
     </>
   );
 }
@@ -576,21 +697,11 @@ export default function VerdictPanel({
   if (isRunning && !verdict) {
     return (
       <div style={{ width: '100%', padding: 16 }}>
-        <div className="label-xs mb-4">OUTPUT</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {[100, 90, 60].map((w, i) => (
-            <div
-              key={i}
-              style={{
-                height: i === 2 ? 8 : 12,
-                width: `${w}%`,
-                background:
-                  'linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%)',
-                backgroundSize: '200% 100%',
-                animation: 'nx-shimmer 1.5s infinite',
-              }}
-            />
-          ))}
+        <div style={{ ...MUTED_LABEL, marginBottom: 12 }}>OUTPUT</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="skeleton-line" style={{ width: '100%' }} />
+          <div className="skeleton-line" style={{ width: '90%' }} />
+          <div className="skeleton-line" style={{ width: '60%' }} />
         </div>
       </div>
     );
@@ -598,12 +709,36 @@ export default function VerdictPanel({
 
   // ── 2. Empty state ────────────────────────────────────────────────────────
   if (!verdict) {
+    const hints: Record<NexusMode, string> = {
+      debate: 'Enter any question or controversial topic',
+      research: 'Enter a topic to research and synthesise',
+      code: 'Paste a public GitHub repository URL',
+      plan: 'Describe an app or project idea',
+    };
+
     return (
       <div style={{ width: '100%', padding: 16 }}>
-        <div className="label-xs mb-4">OUTPUT</div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 120 }}>
-          <span style={{ ...MONO, fontSize: 11, color: 'var(--nx-text-muted)' }}>
-            {hasRun === false ? "Run a query to see output" : "Awaiting synthesis..."}
+        <div style={{ ...MUTED_LABEL, marginBottom: 12 }}>OUTPUT</div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 180, textAlign: 'center' }}>
+          {/* 2x2 Dots Grid Icon */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, auto)', gap: '4px', marginBottom: '16px' }}>
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                style={{
+                  width: '4px',
+                  height: '4px',
+                  borderRadius: '50%',
+                  background: 'var(--nx-text-muted)',
+                }}
+              />
+            ))}
+          </div>
+          <span style={{ ...MONO, fontSize: '11px', color: 'var(--nx-text-muted)', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+            Run a query to see {mode.toUpperCase()} output
+          </span>
+          <span style={{ ...MONO, fontSize: '10px', color: 'var(--nx-text-muted)', opacity: 0.7 }}>
+            {hints[mode]}
           </span>
         </div>
       </div>
