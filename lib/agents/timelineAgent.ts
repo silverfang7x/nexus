@@ -71,7 +71,7 @@ Only the timeline.`;
                   node: {
                     id: nodeId,
                     type: 'milestone',
-                    label: `Week ${num}: ${milestoneTitle}`,
+                    label: `Week ${num}: ${milestoneTitle}`.slice(0, 28).replace(/\*\*/g, '').trim(),
                     content: item,
                     agentId: 'synthesizer',
                     timestamp: Date.now(),

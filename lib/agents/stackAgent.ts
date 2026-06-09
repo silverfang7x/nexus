@@ -73,7 +73,7 @@ Only the list. Nothing else.`;
                   node: {
                     id: nodeId,
                     type: 'milestone',
-                    label: techName,
+                    label: techName.slice(0, 28).replace(/\*\*/g, '').trim(),
                     content: item,
                     agentId: 'codeanalyst',
                     timestamp: Date.now(),

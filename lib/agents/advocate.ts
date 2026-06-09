@@ -67,7 +67,7 @@ RULES:
                   node: {
                     id: crypto.randomUUID(),
                     type: 'claim',
-                    label: argument.slice(0, 28) + (argument.length > 28 ? '...' : ''),
+                    label: argument.slice(0, 28).replace(/\*\*/g, '').trim(),
                     content: argument,
                     agentId: 'advocate',
                     confidence: 0.75,

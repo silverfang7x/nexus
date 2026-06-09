@@ -68,7 +68,7 @@ Only the list.`;
                   node: {
                     id: nodeId,
                     type: 'risk',
-                    label: riskName,
+                    label: riskName.slice(0, 28).replace(/\*\*/g, '').trim(),
                     content: item,
                     agentId: 'challenger',
                     timestamp: Date.now(),

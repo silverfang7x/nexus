@@ -37,6 +37,18 @@ const getNodeTypeLetter = (type: string): string => {
   }
 };
 
+function sanitizeLabel(label: string): string {
+  return label
+    .replace(/\*\*/g, '')     // remove bold **
+    .replace(/\*/g, '')       // remove italic *
+    .replace(/#{1,6}\s/g, '') // remove headings
+    .replace(/`/g, '')        // remove code ticks
+    .replace(/\[|\]/g, '')    // remove brackets
+    .replace(/^\d+\.\s/, '')  // remove "1. " numbering
+    .trim();
+}
+
+
 export interface NexusGraphProps {
   nodes: GraphNode[];
   edges: GraphEdge[];
@@ -830,7 +842,10 @@ export default function NexusGraph({
         .attr('stroke-opacity', 0.9);
 
       // Text 1 - icon letter (adjust position/size dynamically)
-      const truncatedLabel = d.label.length > 18 ? d.label.substring(0, 18) + '…' : d.label;
+      const displayLabel = sanitizeLabel(d.label);
+      const truncatedLabel = displayLabel.length > 24 
+        ? displayLabel.slice(0, 22) + '…'
+        : displayLabel;
       let iconText = isIssue ? '!' : getNodeTypeLetter(d.type);
       if (isTask) {
         const match = d.label.match(/Day (\d+)/);

@@ -79,7 +79,7 @@ Only the numbered list.`;
                   node: {
                     id: nodeId,
                     type: 'source',
-                    label: shortLabel,
+                    label: questionText.slice(0, 28).replace(/\*\*/g, '').trim(),
                     content: questionText,
                     agentId: 'factchecker',
                     timestamp: Date.now(),
@@ -172,7 +172,7 @@ Be specific. Cite general knowledge, not invented sources.`;
                   node: {
                     id: factNodeId,
                     type: 'fact',
-                    label: shortLabel,
+                    label: finding.slice(0, 28).replace(/\*\*/g, '').trim(),
                     content: finding,
                     agentId: 'advocate',
                     confidence: confidenceValue,

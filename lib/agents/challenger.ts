@@ -68,7 +68,7 @@ RULES:
                   node: {
                     id: rebuttalNodeId,
                     type: 'rebuttal',
-                    label: rebuttal.slice(0, 28) + (rebuttal.length > 28 ? '...' : ''),
+                    label: rebuttal.slice(0, 28).replace(/\*\*/g, '').trim(),
                     content: rebuttal,
                     agentId: 'challenger',
                     timestamp: Date.now(),

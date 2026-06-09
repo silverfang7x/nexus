@@ -37,7 +37,7 @@ export async function POST(request: Request) {
                 node: {
                   id: taskNodeId,
                   type: "task", // Use 'task' type to differentiate from milestone
-                  label: `Day ${task.day}: ${task.title}`,
+                  label: `Day ${task.day}: ${task.title}`.slice(0, 28).replace(/\*\*/g, '').trim(),
                   content: `${task.description}\n\nDeliverable: ${task.deliverable}\nTime: ${task.duration}`,
                   agentId: "codeanalyst",
                   confidence: 0.85,

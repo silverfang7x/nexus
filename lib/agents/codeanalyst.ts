@@ -93,7 +93,7 @@ export async function runCodeMode(
       payload: {
         node: {
           id: file.path,
-          label: filename,
+          label: filename.slice(0, 28).replace(/\*\*/g, '').trim(),
           type: 'file',
           agentId: 'codeanalyst',
           content: file.path,
@@ -191,7 +191,7 @@ Respond with JSON only.`;
           payload: {
             node: {
               id: file.path,
-              label: filename,
+              label: filename.slice(0, 28).replace(/\*\*/g, '').trim(),
               type: 'file',
               agentId: 'codeanalyst',
               content: file.path,
@@ -205,15 +205,13 @@ Respond with JSON only.`;
         // Add issue child nodes
         for (const issue of parsed.issues) {
           const issueNodeId = crypto.randomUUID();
-          const label = issue.issue.length > 20 ? issue.issue.substring(0, 17) + '...' : issue.issue;
-          
           onEvent({
             agentId: 'codeanalyst',
             type: 'node_created',
             payload: {
               node: {
                 id: issueNodeId,
-                label,
+                label: issue.issue.slice(0, 28).replace(/\*\*/g, '').trim(),
                 type: 'issue',
                 agentId: 'codeanalyst',
                 content: `File: ${file.path}\nLine: ${issue.line}\nSeverity: ${issue.severity.toUpperCase()}\n\nIssue:\n${issue.issue}\n\nSuggestion:\n${issue.suggestion}`,

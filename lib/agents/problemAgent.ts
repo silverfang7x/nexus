@@ -71,7 +71,7 @@ Format as numbered list 1-4. Nothing else.`;
                   node: {
                     id: nodeId,
                     type: 'feature',
-                    label: label,
+                    label: label.slice(0, 28).replace(/\*\*/g, '').trim(),
                     content: content,
                     agentId: 'advocate',
                     timestamp: Date.now(),
