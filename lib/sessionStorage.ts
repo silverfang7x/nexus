@@ -73,7 +73,25 @@ export function getSessions(): NexusSession[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    // Filter out old-schema sessions missing modes field
+    const valid = parsed.filter(
+      (s: unknown) => {
+        if (typeof s !== 'object' || s === null) return false;
+        const sessionObj = s as Record<string, unknown>;
+        return sessionObj.modes !== undefined && typeof sessionObj.modes === 'object' && sessionObj.modes !== null;
+      }
+    );
+
+    // If we filtered any out, save the cleaned list back
+    if (valid.length !== parsed.length) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(valid));
+    }
+
+    return valid;
   } catch {
     return [];
   }

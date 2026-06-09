@@ -38,6 +38,18 @@ function formatRelativeTime(timestamp: number): string {
 
 const MONO: React.CSSProperties = { fontFamily: 'var(--nx-font-mono), monospace' };
 
+function isValidSession(session: unknown): session is NexusSession {
+  if (typeof session !== 'object' || session === null) return false;
+  const s = session as Record<string, unknown>;
+  return (
+    typeof s.id === 'string' &&
+    typeof s.timestamp === 'number' &&
+    s.modes !== undefined &&
+    typeof s.modes === 'object' &&
+    s.modes !== null
+  );
+}
+
 export default function SessionsDrawer({
   isOpen,
   onClose,
@@ -49,6 +61,8 @@ export default function SessionsDrawer({
 }: SessionsDrawerProps) {
   const [confirmClear, setConfirmClear] = useState(false);
   const [newSessionHovered, setNewSessionHovered] = useState(false);
+
+  const validSessions = sessions.filter(isValidSession);
 
   useEffect(() => {
     if (confirmClear) {
@@ -216,7 +230,7 @@ export default function SessionsDrawer({
                 HISTORY
               </div>
 
-              {sessions.length === 0 ? (
+              {validSessions.length === 0 ? (
                 /* EMPTY STATE */
                 <div
                   style={{
@@ -289,16 +303,16 @@ export default function SessionsDrawer({
               ) : (
                 /* SESSIONS LIST */
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {sessions.map((session) => {
+                  {validSessions.map((session) => {
                     const isActive = session.id === currentSessionId;
                     const primaryModeColor = getModeColor(session.primaryMode);
 
                     const modesList: NexusMode[] = ['debate', 'research', 'code', 'plan'];
                     const nonNullModes = modesList.filter(
-                      (m) => session.modes[m] !== null
+                      (m) => session.modes?.[m] != null
                     );
                     const modeCount = nonNullModes.length;
-                    const totalNodes = nonNullModes.reduce((sum, m) => sum + (session.modes[m]?.nodes.length || 0), 0);
+                    const totalNodes = nonNullModes.reduce((sum, m) => sum + (session.modes?.[m]?.nodes?.length ?? 0), 0);
 
                     return (
                       <div
@@ -394,7 +408,7 @@ export default function SessionsDrawer({
                         {/* Mode dots row */}
                         <div style={{ display: 'flex', gap: '4px', alignItems: 'center', margin: '2px 0' }}>
                           {modesList.map((mode) => {
-                            const hasData = session.modes[mode] !== null;
+                            const hasData = session.modes?.[mode] != null;
                             const modeColor = getModeColor(mode);
                             return (
                               <span
@@ -432,7 +446,7 @@ export default function SessionsDrawer({
             </div>
 
             {/* FOOTER */}
-            {sessions.length > 0 && (
+            {validSessions.length > 0 && (
               <div
                 style={{
                   padding: '16px 20px',
