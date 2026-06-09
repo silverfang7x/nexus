@@ -398,12 +398,7 @@ export default function Dashboard() {
   };
 
   // --- Session History State & Refs ---
-  const [sessions, setSessions] = useState<NexusSession[]>(() => {
-    if (typeof window !== 'undefined') {
-      return getSessions();
-    }
-    return [];
-  });
+  const [sessions, setSessions] = useState<NexusSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [graphScale, setGraphScale] = useState(1);
   const [sessionsDrawerOpen, setSessionsDrawerOpen] = useState(false);
@@ -412,6 +407,8 @@ export default function Dashboard() {
   const sessionStartRef = useRef<number>(0);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSessions(getSessions());
     sessionStartRef.current = Date.now();
   }, []);
 
@@ -921,6 +918,7 @@ export default function Dashboard() {
                 <span>SESSIONS</span>
                 {sessions.length > 0 && (
                   <div
+                    suppressHydrationWarning
                     style={{
                       width: '12px',
                       height: '12px',
@@ -1194,6 +1192,7 @@ export default function Dashboard() {
                   <span>SESSIONS</span>
                   {sessions.length > 0 && (
                     <div
+                      suppressHydrationWarning
                       style={{
                         width: '14px',
                         height: '14px',
