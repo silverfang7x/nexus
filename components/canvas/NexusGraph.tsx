@@ -47,7 +47,6 @@ function sanitizeLabel(label: string): string {
 }
 
 
-
 export interface NexusGraphProps {
   nodes: GraphNode[];
   edges: GraphEdge[];
@@ -117,17 +116,9 @@ export default function NexusGraph({
 
     const simulation = d3.forceSimulation<SimNode>()
       .alphaDecay(0.025)
-      .velocityDecay(0.4);
-
-    // Link force
-    const linkForce = d3.forceLink<SimNode, SimLink>()
-      .id((d: SimNode) => d.id);
-    if (mode === 'code') {
-      linkForce
-        .distance(90)
-        .strength(0.5);
-    } else {
-      linkForce
+      .velocityDecay(0.4)
+      .force('link', d3.forceLink<SimNode, SimLink>()
+        .id((d: SimNode) => d.id)
         .distance((link) => {
           const src = typeof link.source === 'object' ? (link.source as SimNode) : null;
           if (src && src.type === 'task') {
@@ -141,53 +132,23 @@ export default function NexusGraph({
             return 0.9;
           }
           return 0.6;
-        });
-    }
-    simulation.force('link', linkForce);
-
-    // Charge force
-    const chargeForce = d3.forceManyBody<SimNode>();
-    if (mode === 'code') {
-      chargeForce
-        .strength(-380)
-        .distanceMax(250);
-    } else {
-      chargeForce
-        .strength(-220)
-        .distanceMax(300);
-    }
-    simulation.force('charge', chargeForce);
-
-    // Collision force
-    const collisionForce = d3.forceCollide<SimNode>();
-    if (mode === 'code') {
-      collisionForce
-        .radius((d: any) => {
-          if (d.type === 'file') return 75;
-          if (d.type === 'issue') return 55;
-          return 45;
         })
-        .strength(0.95);
-    } else {
-      collisionForce
+      )
+      .force('charge', d3.forceManyBody()
+        .strength(-220)
+        .distanceMax(300)
+      )
+      .force('collision', d3.forceCollide<SimNode>()
         .radius((d) => {
           if (d.type === 'milestone') return 72;  // more space for week labels
           if (d.type === 'source') return 65;
           if (d.type === 'task') return 35;       // tighter spacing for tasks
           return 52;
         })
-        .strength(0.85);
-    }
-    simulation.force('collision', collisionForce);
-
-    // X/Y forces
-    if (mode === 'code') {
-      simulation.force('x', d3.forceX<SimNode>(currentWidth / 2).strength(0.02));
-      simulation.force('y', d3.forceY<SimNode>(currentHeight / 2).strength(0.02));
-    } else {
-      simulation.force('x', d3.forceX<SimNode>(currentWidth / 2).strength(0.04));
-      simulation.force('y', d3.forceY<SimNode>(currentHeight * 0.45).strength(0.06));
-    }
+        .strength(0.85)
+      )
+      .force('x', d3.forceX<SimNode>(currentWidth / 2).strength(0.04))
+      .force('y', d3.forceY<SimNode>(currentHeight * 0.45).strength(0.06));
 
     if (mode === 'debate') {
       // Advocate nodes (claims) pull to LEFT side
@@ -265,13 +226,8 @@ export default function NexusGraph({
           simulation.force('debate-y', null);
         }
 
-        if (mode === 'code') {
-          simulation.force('x', d3.forceX<SimNode>(newWidth / 2).strength(0.02));
-          simulation.force('y', d3.forceY<SimNode>(newHeight / 2).strength(0.02));
-        } else {
-          simulation.force('x', d3.forceX<SimNode>(newWidth / 2).strength(0.04));
-          simulation.force('y', d3.forceY<SimNode>(newHeight * 0.45).strength(0.06));
-        }
+        simulation.force('x', d3.forceX<SimNode>(newWidth / 2).strength(0.04));
+        simulation.force('y', d3.forceY<SimNode>(newHeight * 0.45).strength(0.06));
         simulation.alpha(0.3).restart();
       });
 
@@ -315,6 +271,7 @@ export default function NexusGraph({
     // Get width and height from sizeRef
     const { width, height } = sizeRef.current;
 
+    // Map the new nodes list to simulation node objects to preserve coords
     const existingNodesMap = new Map<string, SimNode>(
       simNodesRef.current.map(n => [n.id, n])
     );
@@ -339,6 +296,133 @@ export default function NexusGraph({
       target: edge.target
     }));
 
+    if (mode === 'code') {
+      interface TreeNode {
+        id: string;
+        name: string;
+        type: string;
+        children: TreeNode[];
+        nodeRef?: SimNode;
+      }
+
+      const rootNode: TreeNode = { id: '__root__', name: 'Root', type: 'dir', children: [] };
+      const treeNodeMap = new Map<string, TreeNode>();
+      treeNodeMap.set('__root__', rootNode);
+
+      // 1. Add files to the tree, creating directory nodes on the fly
+      for (const node of nextSimNodes) {
+        if (node.type !== 'file') continue;
+
+        const parts = node.id.split('/');
+        let currentParent = rootNode;
+        let currentPath = '';
+
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i];
+          currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+          if (i === parts.length - 1) {
+            // Leaf node
+            const fileNode: TreeNode = {
+              id: node.id,
+              name: part,
+              type: 'file',
+              children: [],
+              nodeRef: node
+            };
+            currentParent.children.push(fileNode);
+            treeNodeMap.set(node.id, fileNode);
+          } else {
+            // Directory node
+            let dirNode = treeNodeMap.get(currentPath);
+            if (!dirNode) {
+              dirNode = {
+                id: currentPath,
+                name: part,
+                type: 'dir',
+                children: []
+              };
+              currentParent.children.push(dirNode);
+              treeNodeMap.set(currentPath, dirNode);
+            }
+            currentParent = dirNode;
+          }
+        }
+      }
+
+      // 2. Map issues to files
+      const fileForIssue = new Map<string, string>();
+      for (const edge of nextSimLinks) {
+        if (edge.type === 'rebuts' || edge.type === 'links' || edge.type === 'fixes' || edge.type === 'depends') {
+          const sourceId = typeof edge.source === 'string' ? edge.source : (edge.source as SimNode).id;
+          const targetId = typeof edge.target === 'string' ? edge.target : (edge.target as SimNode).id;
+          
+          const sourceNode = nextSimNodes.find(n => n.id === sourceId);
+          const targetNode = nextSimNodes.find(n => n.id === targetId);
+
+          if (sourceNode?.type === 'issue' && targetNode?.type === 'file') {
+            fileForIssue.set(sourceId, targetId);
+          } else if (targetNode?.type === 'issue' && sourceNode?.type === 'file') {
+            fileForIssue.set(targetId, sourceId);
+          }
+        }
+      }
+
+      for (const node of nextSimNodes) {
+        if (node.type !== 'issue') continue;
+        const fileId = fileForIssue.get(node.id);
+        const parentNode = fileId ? treeNodeMap.get(fileId) : rootNode;
+
+        if (parentNode) {
+          const issueNode: TreeNode = {
+            id: node.id,
+            name: node.label,
+            type: 'issue',
+            children: [],
+            nodeRef: node
+          };
+          parentNode.children.push(issueNode);
+          treeNodeMap.set(node.id, issueNode);
+        }
+      }
+
+      // 3. Add other generic nodes
+      for (const node of nextSimNodes) {
+        if (node.type !== 'file' && node.type !== 'issue' && !treeNodeMap.has(node.id)) {
+          const genericNode: TreeNode = {
+            id: node.id,
+            name: node.label,
+            type: node.type,
+            children: [],
+            nodeRef: node
+          };
+          rootNode.children.push(genericNode);
+          treeNodeMap.set(node.id, genericNode);
+        }
+      }
+
+      // 4. Run tree layout
+      const root = d3.hierarchy<TreeNode>(rootNode);
+      const treeLayout = d3.tree<TreeNode>().size([height - 100, width - 240]);
+      treeLayout(root);
+
+      // 5. Update nextSimNodes coords and lock them
+      root.each((d) => {
+        if (d.data.nodeRef) {
+          d.data.nodeRef.x = (d.y ?? 0) + 120;
+          d.data.nodeRef.y = (d.x ?? 0) + 50;
+          d.data.nodeRef.fx = d.data.nodeRef.x;
+          d.data.nodeRef.fy = d.data.nodeRef.y;
+        }
+      });
+    } else {
+      // Release force lock
+      for (const node of nextSimNodes) {
+        node.fx = null;
+        node.fy = null;
+      }
+    }
+
     simNodesRef.current = nextSimNodes;
 
     // Update simulation
@@ -348,6 +432,7 @@ export default function NexusGraph({
       linkForce.links(nextSimLinks);
     }
 
+    // Restart alpha on new nodes so they settle down after finding positions
     sim.alpha(0.4).restart();
 
     let fitTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -628,12 +713,12 @@ export default function NexusGraph({
     nodeContentEnter.append('rect')
       .attr('class', 'node-rect')
       .attr('x', -60)
-      .attr('y', -14)
+      .attr('y', -16)
       .attr('width', 120)
-      .attr('height', 28)
-      .attr('rx', 2)
-      .attr('ry', 2)
-      .attr('stroke-width', '1')
+      .attr('height', 32)
+      .attr('rx', 4)
+      .attr('ry', 4)
+      .attr('stroke-width', '1.5')
       .style('display', 'none');
 
     // d) Text 1 — type icon letter
@@ -676,11 +761,11 @@ export default function NexusGraph({
     nodeContentEnter.append('rect')
       .attr('class', 'selection-rect')
       .attr('x', -64)
-      .attr('y', -18)
+      .attr('y', -20)
       .attr('width', 128)
-      .attr('height', 36)
-      .attr('rx', 4)
-      .attr('ry', 4)
+      .attr('height', 40)
+      .attr('rx', 6)
+      .attr('ry', 6)
       .attr('fill', 'none')
       .attr('stroke-width', '2')
       .style('pointer-events', 'none')
@@ -700,36 +785,18 @@ export default function NexusGraph({
     nodeGroupsMerged.each(function(d) {
       const el = d3.select(this);
       const isTask = d.type === 'task';
-      const isFix = d.type === 'fix';
+      const color = isTask ? 'rgba(55, 138, 221, 0.7)' : (d.color || getAgentColor(d.agentId));
+      const isAgentActive = activeAgents.includes(d.agentId);
       const isFile = d.type === 'file';
       const isIssue = d.type === 'issue';
       const isCodeMode = mode === 'code';
 
-      // Parse severity for code mode issue nodes
-      const color = isTask ? 'rgba(55, 138, 221, 0.7)' : (d.color || getAgentColor(d.agentId));
-      let activeColor = color;
-      if (isCodeMode) {
-        if (isIssue) {
-          const contentLower = d.content ? d.content.toLowerCase() : '';
-          if (contentLower.includes('severity: high')) {
-            activeColor = 'var(--nx-challenger)';
-          } else if (contentLower.includes('severity: medium')) {
-            activeColor = '#BA7517';
-          } else {
-            activeColor = 'var(--nx-text-muted)';
-          }
-        } else if (isFix) {
-          activeColor = 'var(--nx-factchecker)';
-        }
-      }
-
-      const isAgentActive = activeAgents.includes(d.agentId);
       const isSynthesisNode = d.agentId === 'synthesizer' && d.type === 'claim';
 
-      // Circle 1 - outer ambient glow (hide for issues, tasks, fixes, or files in code mode)
+      // Circle 1 - outer ambient glow (hide for issues, tasks, or files in code mode)
       const glowOuter = el.select('.glow-outer')
-        .style('display', (isIssue || isTask || isFix || (isCodeMode && isFile)) ? 'none' : 'block')
-        .attr('fill', activeColor)
+        .style('display', (isIssue || isTask || (isCodeMode && isFile)) ? 'none' : 'block')
+        .attr('fill', color)
         .attr('fill-opacity', isSynthesisNode ? 0.3 : 0.06);
 
       if (isSynthesisNode) {
@@ -738,14 +805,14 @@ export default function NexusGraph({
         glowOuter.style('filter', null);
       }
 
-      // Circle 2 - mid ring (hide for issues, tasks, fixes, or files in code mode)
+      // Circle 2 - mid ring (hide for issues, tasks, or files in code mode)
       const midRing = el.select('.glow-mid');
       midRing
-        .attr('stroke', activeColor)
+        .attr('stroke', color)
         .attr('stroke-opacity', 0.4)
-        .style('display', (isAgentActive && !isIssue && !isTask && !isFix && !(isCodeMode && isFile)) ? 'block' : 'none');
+        .style('display', (isAgentActive && !isIssue && !isTask && !(isCodeMode && isFile)) ? 'block' : 'none');
 
-      if (isAgentActive && !isIssue && !isTask && !isFix && !(isCodeMode && isFile)) {
+      if (isAgentActive && !isIssue && !isTask && !(isCodeMode && isFile)) {
         midRing.style('animation', 'nx-pulse-ring 2s ease-out infinite');
         midRing.style('transform-origin', 'center');
         midRing.style('transform-box', 'fill-box');
@@ -753,23 +820,23 @@ export default function NexusGraph({
         midRing.style('animation', null);
       }
 
-      // Circle 3 - inner circle (hide for files in code mode, adjust size for issues/fixes/tasks)
-      const r = isSynthesisNode ? 30 : (isIssue ? (isCodeMode ? 14 : 12) : (isFix ? 12 : (isTask ? 16 : 22)));
+      // Circle 3 - inner circle (hide for files in code mode, adjust size for issues or tasks)
+      const r = isSynthesisNode ? 30 : (isIssue ? 12 : (isTask ? 16 : 22));
       el.select('.inner-circle')
         .style('display', (isCodeMode && isFile) ? 'none' : 'block')
         .attr('r', r)
-        .attr('fill', activeColor)
-        .attr('fill-opacity', (isIssue || isFix) ? 0.9 : 0.15)
-        .attr('stroke', activeColor)
+        .attr('fill', color)
+        .attr('fill-opacity', isIssue ? 0.9 : 0.15)
+        .attr('stroke', color)
         .attr('stroke-opacity', isTask ? 0.7 : 0.9)
         .attr('stroke-dasharray', isTask ? '3 2' : null);
 
       // Rect for files in code mode
       el.select('.node-rect')
         .style('display', (isCodeMode && isFile) ? 'block' : 'none')
-        .attr('fill', activeColor)
-        .attr('fill-opacity', 0.1)
-        .attr('stroke', 'var(--nx-codeanalyst)')
+        .attr('fill', color)
+        .attr('fill-opacity', 0.15)
+        .attr('stroke', color)
         .attr('stroke-opacity', 0.9);
 
       // Text 1 - icon letter (adjust position/size dynamically)
@@ -785,38 +852,40 @@ export default function NexusGraph({
 
       if (isCodeMode && isFile) {
         el.select('.node-icon')
-          .text('');
-
-        const fileLabel = displayLabel.length > 18
-          ? displayLabel.slice(0, 16) + '…'
-          : displayLabel;
+          .attr('x', -48)
+          .attr('y', 0)
+          .attr('font-size', '13px')
+          .attr('fill', color)
+          .attr('text-anchor', 'start')
+          .attr('dominant-baseline', 'central')
+          .text(iconText);
 
         el.select('.node-label')
-          .attr('x', 0)
+          .attr('x', -28)
           .attr('y', 0)
           .attr('font-size', '10px')
           .attr('fill', 'rgba(255, 255, 255, 0.85)')
-          .attr('text-anchor', 'middle')
+          .attr('text-anchor', 'start')
           .attr('dominant-baseline', 'central')
-          .text(fileLabel);
+          .text(truncatedLabel);
       } else {
         el.select('.node-icon')
           .attr('x', 0)
           .attr('y', 0)
-          .attr('font-size', (isIssue || isFix) ? '10px' : (isTask ? '10px' : '13px'))
-          .attr('fill', (isIssue || isTask || isFix) ? '#ffffff' : activeColor)
+          .attr('font-size', isIssue ? '10px' : (isTask ? '10px' : '13px'))
+          .attr('fill', (isIssue || isTask) ? '#ffffff' : color)
           .attr('text-anchor', 'middle')
           .attr('dominant-baseline', 'central')
           .text(iconText);
 
         el.select('.node-label')
           .attr('x', 0)
-          .attr('y', isIssue ? 22 : (isTask ? 28 : 36))
-          .attr('font-size', (isIssue && isCodeMode) ? '9px' : (isTask ? '9px' : '10px'))
+          .attr('y', isIssue ? 24 : (isTask ? 28 : 36))
+          .attr('font-size', isTask ? '9px' : '10px')
           .attr('fill', 'rgba(255, 255, 255, 0.65)')
           .attr('text-anchor', 'middle')
-          .attr('dominant-baseline', isIssue ? 'central' : 'alphabetic')
-          .text((isIssue && isCodeMode) ? 'ISSUE' : truncatedLabel);
+          .attr('dominant-baseline', 'alphabetic')
+          .text(truncatedLabel);
       }
 
       // Confidence ring
@@ -833,7 +902,7 @@ export default function NexusGraph({
       // Selection ring: only for circles
       el.select('.selection-ring')
         .style('display', (isCodeMode && isFile) ? 'none' : 'block')
-        .attr('r', isSynthesisNode ? 54 : (isIssue ? (isCodeMode ? 20 : 18) : (isFix ? 18 : (isTask ? 20 : 46))))
+        .attr('r', isSynthesisNode ? 54 : (isTask ? 20 : 46))
         .attr('stroke', 'rgba(255,255,255,0.6)')
         .attr('stroke-opacity', isSelected ? 1 : 0)
         .style('transition', 'stroke-opacity 150ms');
@@ -1046,7 +1115,6 @@ export default function NexusGraph({
               </text>
             </g>
           )}
-
           <g className="edges-group" />
           <g className="nodes-group" />
         </g>
