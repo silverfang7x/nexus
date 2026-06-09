@@ -491,6 +491,7 @@ export default function Dashboard() {
           isRunning={status === 'running'}
           query={query}
           nodes={nodes}
+          session={{ query, mode: activeMode, nodes, edges }}
         />
       </div>
     </div>
@@ -795,6 +796,7 @@ export default function Dashboard() {
                 isRunning={status === 'running'}
                 query={query}
                 nodes={nodes}
+                session={{ query, mode: activeMode, nodes, edges }}
               />
             </div>
           </div>

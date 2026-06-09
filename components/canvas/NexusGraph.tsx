@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GraphNode, GraphEdge, AgentId, EdgeType, NexusMode } from '@/types/nexus';
@@ -62,6 +62,8 @@ export default function NexusGraph({
   const simNodesRef = useRef<SimNode[]>([]);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const sizeRef = useRef({ width: 800, height: 600 });
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const { width, height } = dimensions;
   const hasFittedRef = useRef(false);
 
   // fitGraph function to transition viewport to fit all nodes
@@ -87,17 +89,18 @@ export default function NexusGraph({
         d3.zoomIdentity.translate(tx, ty).scale(scale));
   };
 
-  // 1. SIMULATION SETUP (run once on mount)
+  // 1. SIMULATION SETUP (run once on mount or when mode changes)
   useEffect(() => {
-    let width = 800;
-    let height = 600;
+    let currentWidth = 800;
+    let currentHeight = 600;
     const svgElement = svgRef.current;
     if (svgElement) {
       const rect = svgElement.getBoundingClientRect();
       if (rect.width && rect.height) {
-        width = rect.width;
-        height = rect.height;
-        sizeRef.current = { width, height };
+        currentWidth = rect.width;
+        currentHeight = rect.height;
+        sizeRef.current = { width: currentWidth, height: currentHeight };
+        setDimensions({ width: currentWidth, height: currentHeight });
       }
     }
 
@@ -125,9 +128,6 @@ export default function NexusGraph({
         .strength(-220)
         .distanceMax(300)
       )
-      .force('center', d3.forceCenter(width / 2, height / 2)
-        .strength(0.08)
-      )
       .force('collision', d3.forceCollide<SimNode>()
         .radius((d) => {
           if (d.type === 'milestone') return 72;  // more space for week labels
@@ -137,8 +137,39 @@ export default function NexusGraph({
         })
         .strength(0.85)
       )
-      .force('x', d3.forceX<SimNode>(width / 2).strength(0.04))
-      .force('y', d3.forceY<SimNode>(height * 0.45).strength(0.06));
+      .force('x', d3.forceX<SimNode>(currentWidth / 2).strength(0.04))
+      .force('y', d3.forceY<SimNode>(currentHeight * 0.45).strength(0.06));
+
+    if (mode === 'debate') {
+      // Advocate nodes (claims) pull to LEFT side
+      simulation.force('debate-x', d3.forceX<SimNode>()
+        .x((d: SimNode) => {
+          if (d.agentId === 'advocate') return currentWidth * 0.28;
+          if (d.agentId === 'challenger') return currentWidth * 0.72;
+          if (d.agentId === 'synthesizer') return currentWidth * 0.50;
+          return currentWidth * 0.50;
+        })
+        .strength((d: SimNode) => {
+          if (d.agentId === 'synthesizer') return 0.03;
+          return 0.12;  // strong enough to form clear clusters
+        })
+      );
+
+      // All debate nodes pulled to vertical center
+      simulation.force('debate-y', d3.forceY<SimNode>(currentHeight * 0.45)
+        .strength(0.08)
+      );
+
+      // Remove the generic center force in debate mode
+      simulation.force('center', null);
+    } else {
+      // Non-debate modes: use standard center force
+      simulation.force('center', d3.forceCenter(currentWidth / 2, currentHeight / 2)
+        .strength(0.06)
+      );
+      simulation.force('debate-x', null);
+      simulation.force('debate-y', null);
+    }
 
     simulationRef.current = simulation;
 
@@ -162,7 +193,29 @@ export default function NexusGraph({
         if (!entries || entries.length === 0) return;
         const { width: newWidth, height: newHeight } = entries[0].contentRect;
         sizeRef.current = { width: newWidth, height: newHeight };
-        simulation.force('center', d3.forceCenter(newWidth / 2, newHeight / 2));
+        setDimensions({ width: newWidth, height: newHeight });
+
+        if (mode === 'debate') {
+          simulation.force('debate-x', d3.forceX<SimNode>()
+            .x((d: SimNode) => {
+              if (d.agentId === 'advocate') return newWidth * 0.28;
+              if (d.agentId === 'challenger') return newWidth * 0.72;
+              if (d.agentId === 'synthesizer') return newWidth * 0.50;
+              return newWidth * 0.50;
+            })
+            .strength((d: SimNode) => {
+              if (d.agentId === 'synthesizer') return 0.03;
+              return 0.12;
+            })
+          );
+          simulation.force('debate-y', d3.forceY<SimNode>(newHeight * 0.45).strength(0.08));
+          simulation.force('center', null);
+        } else {
+          simulation.force('center', d3.forceCenter(newWidth / 2, newHeight / 2).strength(0.06));
+          simulation.force('debate-x', null);
+          simulation.force('debate-y', null);
+        }
+
         simulation.force('x', d3.forceX<SimNode>(newWidth / 2).strength(0.04));
         simulation.force('y', d3.forceY<SimNode>(newHeight * 0.45).strength(0.06));
         simulation.alpha(0.3).restart();
@@ -179,7 +232,7 @@ export default function NexusGraph({
     return () => {
       simulation.stop();
     };
-  }, []);
+  }, [mode]);
 
   // DRAG BEHAVIOR on nodes
   const getDragBehavior = (sim: d3.Simulation<SimNode, SimLink>) => {
@@ -623,6 +676,16 @@ export default function NexusGraph({
       .attr('r', 42)
       .attr('stroke', 'none');
 
+    // a2) Circle 1b — rotating outer ring for synthesizer
+    nodeContentEnter.append('circle')
+      .attr('class', 'synthesis-ring')
+      .attr('r', 42)
+      .attr('fill', 'none')
+      .attr('stroke', 'rgba(127, 119, 221, 0.25)')
+      .attr('stroke-width', '1')
+      .attr('stroke-dasharray', '8 4')
+      .style('display', 'none');
+
     // b) Circle 2 — mid ring (only when node's agentId is in activeAgents)
     nodeContentEnter.append('circle')
       .attr('class', 'glow-mid')
@@ -718,11 +781,19 @@ export default function NexusGraph({
       const isIssue = d.type === 'issue';
       const isCodeMode = mode === 'code';
 
+      const isSynthesisNode = d.agentId === 'synthesizer' && d.type === 'claim';
+
       // Circle 1 - outer ambient glow (hide for issues, tasks, or files in code mode)
-      el.select('.glow-outer')
+      const glowOuter = el.select('.glow-outer')
         .style('display', (isIssue || isTask || (isCodeMode && isFile)) ? 'none' : 'block')
         .attr('fill', color)
-        .attr('fill-opacity', 0.06);
+        .attr('fill-opacity', isSynthesisNode ? 0.3 : 0.06);
+
+      if (isSynthesisNode) {
+        glowOuter.style('filter', 'drop-shadow(0px 0px 32px rgba(127, 119, 221, 0.5))');
+      } else {
+        glowOuter.style('filter', null);
+      }
 
       // Circle 2 - mid ring (hide for issues, tasks, or files in code mode)
       const midRing = el.select('.glow-mid');
@@ -740,7 +811,7 @@ export default function NexusGraph({
       }
 
       // Circle 3 - inner circle (hide for files in code mode, adjust size for issues or tasks)
-      const r = isIssue ? 12 : (isTask ? 16 : 22);
+      const r = isSynthesisNode ? 30 : (isIssue ? 12 : (isTask ? 16 : 22));
       el.select('.inner-circle')
         .style('display', (isCodeMode && isFile) ? 'none' : 'block')
         .attr('r', r)
@@ -818,7 +889,7 @@ export default function NexusGraph({
       // Selection ring: only for circles
       el.select('.selection-ring')
         .style('display', (isCodeMode && isFile) ? 'none' : 'block')
-        .attr('r', isTask ? 20 : 46)
+        .attr('r', isSynthesisNode ? 54 : (isTask ? 20 : 46))
         .attr('stroke', 'rgba(255,255,255,0.6)')
         .attr('stroke-opacity', isSelected ? 1 : 0)
         .style('transition', 'stroke-opacity 150ms');
@@ -836,6 +907,20 @@ export default function NexusGraph({
         .style('display', isContinuation ? 'block' : 'none')
         .attr('stroke', color)
         .attr('stroke-opacity', 0.5);
+
+      // Synthesis rotating outer ring
+      const synthesisRing = el.select('.synthesis-ring');
+      if (isSynthesisNode) {
+        synthesisRing
+          .style('display', 'block')
+          .style('animation', 'nx-rotate 8s linear infinite')
+          .style('transform-origin', 'center')
+          .style('transform-box', 'fill-box');
+      } else {
+        synthesisRing
+          .style('display', 'none')
+          .style('animation', null);
+      }
 
       // Set node-content opacity based on sessionIndex if not entering
       if (!(this as SVGGElement & { __isEntering?: boolean }).__isEntering) {
@@ -989,6 +1074,55 @@ export default function NexusGraph({
           </marker>
         </defs>
         <g className="inner-group">
+          {mode === 'debate' && (
+            <g className="debate-background-decorations" style={{ pointerEvents: 'none' }}>
+              <text
+                x={width * 0.15}
+                y={60}
+                fontSize={11}
+                fontFamily="Syne, sans-serif"
+                fontWeight={700}
+                fill="rgba(232, 89, 60, 0.20)"
+                letterSpacing="0.15em"
+                textAnchor="middle"
+              >
+                FOR
+              </text>
+              <text
+                x={width * 0.85}
+                y={60}
+                fontSize={11}
+                fontFamily="Syne, sans-serif"
+                fontWeight={700}
+                fill="rgba(226, 75, 74, 0.20)"
+                letterSpacing="0.15em"
+                textAnchor="middle"
+              >
+                AGAINST
+              </text>
+              <line
+                x1={width / 2}
+                y1={40}
+                x2={width / 2}
+                y2={height - 40}
+                stroke="rgba(255,255,255,0.04)"
+                strokeWidth={1}
+                strokeDasharray="4 6"
+              />
+              <text
+                x={width * 0.50}
+                y={height - 30}
+                fontSize={10}
+                fontFamily="Syne, sans-serif"
+                fontWeight={600}
+                fill="rgba(127, 119, 221, 0.25)"
+                letterSpacing="0.12em"
+                textAnchor="middle"
+              >
+                SYNTHESIS
+              </text>
+            </g>
+          )}
           <g className="edges-group" />
           <g className="nodes-group" />
         </g>

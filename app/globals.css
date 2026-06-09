@@ -352,3 +352,8 @@ body > * {
 .glow-factchecker { box-shadow: var(--nx-glow-factchecker); }
 .glow-codeanalyst { box-shadow: var(--nx-glow-codeanalyst); }
 .glow-synthesizer { box-shadow: var(--nx-glow-synthesizer); }
+
+@keyframes nx-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
