@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NexusMode } from '@/types/nexus';
 
@@ -19,6 +19,7 @@ export interface ModeSelectorProps {
   isContinuationReady?: boolean;
   nodeCount?: number;
   onClear?: () => void;
+  hasRunStates?: Record<NexusMode, boolean>;
 }
 
 const placeholders: Record<NexusMode, string> = {
@@ -47,6 +48,7 @@ export default function ModeSelector({
   isContinuationReady = false,
   nodeCount = 0,
   onClear,
+  hasRunStates,
 }: ModeSelectorProps) {
   const [localQuery, setLocalQuery] = useState('');
   const query = controlledQuery !== undefined ? controlledQuery : localQuery;
@@ -55,6 +57,14 @@ export default function ModeSelector({
   const [isFocused, setIsFocused] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [hoveredNewSession, setHoveredNewSession] = useState(false);
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (activeMode && hasRunStates && !hasRunStates[activeMode]) {
+      textareaRef.current?.focus();
+    }
+  }, [activeMode, hasRunStates]);
 
   const modes: NexusMode[] = ['debate', 'research', 'code', 'plan'];
 
@@ -99,6 +109,7 @@ export default function ModeSelector({
               onClick={() => onModeChange(mode)}
               className="flex-1 cursor-pointer py-2.5 text-center uppercase transition-all duration-150 rounded-none border-0 focus:outline-none"
               style={{
+                position: 'relative',
                 fontFamily: 'var(--nx-font-display), sans-serif',
                 fontWeight: 700,
                 fontSize: '11px',
@@ -119,6 +130,23 @@ export default function ModeSelector({
               }}
             >
               {mode}
+              {hasRunStates?.[mode] && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 6,
+                    right: 8,
+                    width: 5,
+                    height: 5,
+                    borderRadius: '50%',
+                    backgroundColor: 
+                      mode === 'debate' ? '#E24B4A' :
+                      mode === 'research' ? '#1D9E75' :
+                      mode === 'code' ? '#378ADD' :
+                      '#BA7517',
+                  }}
+                />
+              )}
             </button>
           );
         })}
@@ -245,6 +273,7 @@ export default function ModeSelector({
         {/* Textarea Area */}
         <div className="relative w-full">
           <textarea
+            ref={textareaRef}
             rows={3}
             value={query}
             disabled={isRunning}

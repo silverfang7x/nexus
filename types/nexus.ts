@@ -87,3 +87,30 @@ export interface AgentConfig {
   color: string;  // hex color for the agent panel
   systemPrompt: string;
 }
+
+export interface ModeState {
+  query: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  structuredOutput: unknown;
+  agentThoughts: Record<string, string>;
+  agentStatuses: Record<string, AgentStatus>;
+  isRunning: boolean;
+  hasRun: boolean;
+}
+
+export type AllModeStates = Record<NexusMode, ModeState>;
+
+export function createBlankModeState(): ModeState {
+  return {
+    query: '',
+    nodes: [],
+    edges: [],
+    structuredOutput: null,
+    agentThoughts: {},
+    agentStatuses: {},
+    isRunning: false,
+    hasRun: false
+  };
+}
+

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { AgentEvent, GraphEdge, GraphNode, NexusMode, AgentId } from "@/types/nexus";
+import { AgentEvent, GraphEdge, GraphNode, NexusMode, AgentId, AgentStatus, ModeState } from "@/types/nexus";
 
 export type SessionStatus = 'idle' | 'running' | 'complete' | 'error' | 'ready_for_continuation';
 
@@ -25,66 +25,75 @@ export interface RestoreSessionData {
   mode: NexusMode;
 }
 
-export function useAgentStream() {
-  const [query, setQuery] = useState<string>('');
-  const [nodes, setNodes] = useState<GraphNode[]>([]);
-  const [edges, setEdges] = useState<GraphEdge[]>([]);
-  const [events, setEvents] = useState<AgentEvent[]>([]);
-  const [status, setStatus] = useState<SessionStatus>('idle');
-  const [verdict, setVerdict] = useState<string>('');
-  const [activeAgents, setActiveAgents] = useState<AgentId[]>([]);
+export function useAgentStream(
+  mode: NexusMode,
+  currentState: ModeState,
+  onStateChange: (updateFn: (prev: ModeState) => Partial<ModeState>) => void
+) {
   const [processedQuery, setProcessedQuery] = useState<ClientProcessedQuery | null>(null);
-  const [lastQuery, setLastQuery] = useState<string>('');
-  const [currentMode, setCurrentMode] = useState<NexusMode>('debate');
+  const [showContinuation, setShowContinuation] = useState(false);
 
   const sessionIndexRef = useRef(0);
   const continuationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  /**
-   * agentThoughts: per-agent accumulated streaming text.
-   * Key = agentId, Value = the text currently being typed out character-by-character.
-   */
-  const [agentThoughts, setAgentThoughts] = useState<Record<string, string>>({});
+  const activeReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
 
   useEffect(() => {
     return () => {
       if (continuationTimeoutRef.current) {
         clearTimeout(continuationTimeoutRef.current);
       }
+      if (activeReaderRef.current) {
+        activeReaderRef.current.cancel().catch(() => {});
+      }
     };
   }, []);
 
-  const startSession = useCallback(async (mode: NexusMode, query: string, useMock = false, isContinuation = false) => {
-    setQuery(query);
-    setCurrentMode(mode);
-    setLastQuery(query);
-
+  const startStream = useCallback(async (query: string, useMock = false, isContinuation = false) => {
     if (continuationTimeoutRef.current) {
       clearTimeout(continuationTimeoutRef.current);
       continuationTimeoutRef.current = null;
     }
 
-    if (!isContinuation) {
-      setNodes([]);
-      setEdges([]);
-      setEvents([]);
-      setVerdict('');
-      setAgentThoughts({});
-      sessionIndexRef.current = 0;
-    } else {
-      setAgentThoughts({});
-      sessionIndexRef.current += 1;
+    if (activeReaderRef.current) {
+      try {
+        await activeReaderRef.current.cancel();
+      } catch (e) {
+        console.error("Error cancelling active reader:", e);
+      }
+      activeReaderRef.current = null;
     }
 
-    setStatus('running');
-    setActiveAgents([]);
+    setShowContinuation(false);
+
+    if (!isContinuation) {
+      sessionIndexRef.current = 0;
+      onStateChange(() => ({
+        query,
+        nodes: [],
+        edges: [],
+        structuredOutput: null,
+        agentThoughts: {},
+        agentStatuses: {},
+        isRunning: true,
+        hasRun: false
+      }));
+    } else {
+      sessionIndexRef.current += 1;
+      onStateChange(() => ({
+        query,
+        agentThoughts: {},
+        isRunning: true,
+        hasRun: true
+      }));
+    }
+
     setProcessedQuery(null);
 
     try {
       const continuationContext = isContinuation ? {
-        existingNodes: nodes,
-        previousQuery: lastQuery,
-        mode: currentMode
+        existingNodes: currentState.nodes,
+        previousQuery: currentState.query,
+        mode: mode
       } : undefined;
 
       const response = await fetch('/api/stream', {
@@ -104,6 +113,7 @@ export function useAgentStream() {
       }
 
       const reader = response.body.getReader();
+      activeReaderRef.current = reader;
       const decoder = new TextDecoder();
       let buffer = '';
 
@@ -126,59 +136,43 @@ export function useAgentStream() {
             try {
               const event = JSON.parse(dataStr) as AgentEvent;
 
-              setEvents((prev) => [...prev, event]);
-
               if (event.type === 'node_created' && event.payload.node) {
                 const nodeWithSession = {
                   ...event.payload.node,
                   sessionIndex: event.payload.node.sessionIndex ?? sessionIndexRef.current
                 };
-                setNodes((prev) => {
-                  const filtered = prev.filter(n => n.id !== nodeWithSession.id);
-                  return [...filtered, nodeWithSession];
+                onStateChange((prev) => {
+                  const filtered = prev.nodes.filter(n => n.id !== nodeWithSession.id);
+                  return { nodes: [...filtered, nodeWithSession] };
                 });
 
               } else if (event.type === 'edge_created' && event.payload.edge) {
-                setEdges((prev) => {
-                  const filtered = prev.filter(e => e.id !== event.payload.edge!.id);
-                  return [...filtered, event.payload.edge!];
+                onStateChange((prev) => {
+                  const filtered = prev.edges.filter(e => e.id !== event.payload.edge!.id);
+                  return { edges: [...filtered, event.payload.edge!] };
                 });
 
               } else if (event.type === 'thinking') {
-                setActiveAgents((prev) => {
-                  if (!prev.includes(event.agentId)) {
-                    return [...prev, event.agentId];
-                  }
-                  return prev;
+                onStateChange((prev) => {
+                  const nextStatuses = { ...prev.agentStatuses, [event.agentId]: 'thinking' as AgentStatus };
+                  const nextThoughts = event.payload.text ? { ...prev.agentThoughts, [event.agentId]: event.payload.text } : prev.agentThoughts;
+                  return { agentStatuses: nextStatuses, agentThoughts: nextThoughts };
                 });
-                if (event.payload.text) {
-                  setAgentThoughts((prev) => ({
-                    ...prev,
-                    [event.agentId]: event.payload.text!,
-                  }));
-                }
 
               } else if (event.type === 'streaming') {
-                if (event.payload.token) {
-                  setAgentThoughts((prev) => ({
-                    ...prev,
-                    [event.agentId]: (prev[event.agentId] ?? '') + event.payload.token!,
-                  }));
-                }
-                setActiveAgents((prev) => {
-                  if (!prev.includes(event.agentId)) {
-                    return [...prev, event.agentId];
-                  }
-                  return prev;
+                onStateChange((prev) => {
+                  const currentThoughts = prev.agentThoughts[event.agentId] ?? '';
+                  const nextThoughts = { ...prev.agentThoughts, [event.agentId]: currentThoughts + (event.payload.token || '') };
+                  const nextStatuses = { ...prev.agentStatuses, [event.agentId]: 'streaming' as AgentStatus };
+                  return { agentStatuses: nextStatuses, agentThoughts: nextThoughts };
                 });
 
               } else if (event.type === 'complete') {
-                if (event.payload.text) {
-                  setAgentThoughts((prev) => ({
-                    ...prev,
-                    [event.agentId]: event.payload.text!,
-                  }));
-                }
+                onStateChange((prev) => {
+                  const nextStatuses = { ...prev.agentStatuses, [event.agentId]: 'done' as AgentStatus };
+                  const nextThoughts = event.payload.text ? { ...prev.agentThoughts, [event.agentId]: event.payload.text } : prev.agentThoughts;
+                  return { agentStatuses: nextStatuses, agentThoughts: nextThoughts };
+                });
 
               } else if (event.type === 'preprocessed') {
                 if (event.payload.processedQuery) {
@@ -186,21 +180,34 @@ export function useAgentStream() {
                 }
 
               } else if (event.type === 'done') {
-                if (event.payload.text) {
-                  setVerdict(event.payload.text);
-                }
-                setStatus('complete');
-                setActiveAgents([]);
+                onStateChange((prev) => {
+                  const nextStatuses = { ...prev.agentStatuses };
+                  for (const key in nextStatuses) {
+                    nextStatuses[key] = 'done';
+                  }
+                  return {
+                    structuredOutput: event.payload.text || '',
+                    isRunning: false,
+                    hasRun: true,
+                    agentStatuses: nextStatuses
+                  };
+                });
 
                 if (continuationTimeoutRef.current) {
                   clearTimeout(continuationTimeoutRef.current);
                 }
                 continuationTimeoutRef.current = setTimeout(() => {
-                  setStatus('ready_for_continuation');
+                  setShowContinuation(true);
                 }, 1500);
 
               } else if (event.type === 'error') {
-                setStatus('error');
+                onStateChange((prev) => {
+                  const nextStatuses = { ...prev.agentStatuses };
+                  for (const key in nextStatuses) {
+                    nextStatuses[key] = 'error';
+                  }
+                  return { isRunning: false, agentStatuses: nextStatuses };
+                });
               }
             } catch (e) {
               console.error('Error parsing event JSON:', e);
@@ -210,102 +217,123 @@ export function useAgentStream() {
       }
     } catch (err) {
       console.error('Stream error:', err);
-      setStatus('error');
-    }
-  }, [nodes, lastQuery, currentMode]);
-
-  const restoreSession = useCallback((session: RestoreSessionData) => {
-    setQuery(session.query);
-    setNodes(session.nodes);
-    setEdges(session.edges);
-    setVerdict(session.structuredOutput as string);
-    setStatus('complete');
-    setActiveAgents([]);
-    setAgentThoughts({});
-    setLastQuery(session.query);
-    setCurrentMode(session.mode);
-    sessionIndexRef.current = 0;
-
-    if (continuationTimeoutRef.current) {
-      clearTimeout(continuationTimeoutRef.current);
-    }
-    continuationTimeoutRef.current = setTimeout(() => {
-      setStatus('ready_for_continuation');
-    }, 1500);
-
-    if (session.cleanQuery) {
-      setProcessedQuery({
-        cleanQuery: session.cleanQuery,
-        detectedMode: session.mode,
-        modeConfidence: 1.0,
-        intent: 'restored',
-        domain: 'restored',
-        entities: [],
-        wasAmbiguous: false,
-        originalQuery: session.query,
-        enrichedQuery: session.query
+      onStateChange((prev) => {
+        const nextStatuses = { ...prev.agentStatuses };
+        for (const key in nextStatuses) {
+          nextStatuses[key] = 'error';
+        }
+        return { isRunning: false, agentStatuses: nextStatuses };
       });
-    } else {
-      setProcessedQuery(null);
+    } finally {
+      activeReaderRef.current = null;
     }
-  }, []);
+  }, [mode, currentState.nodes, currentState.query, onStateChange]);
 
-  const clearSession = useCallback(() => {
-    setQuery('');
-    setNodes([]);
-    setEdges([]);
-    setEvents([]);
-    setStatus('idle');
-    setVerdict('');
-    setActiveAgents([]);
-    setProcessedQuery(null);
-    setAgentThoughts({});
-    setLastQuery('');
+  const stopStream = useCallback(() => {
+    if (activeReaderRef.current) {
+      activeReaderRef.current.cancel().catch(err => console.error("Error stopping stream:", err));
+      activeReaderRef.current = null;
+    }
+    onStateChange((prev) => {
+      const nextStatuses = { ...prev.agentStatuses };
+      for (const key in nextStatuses) {
+        if (nextStatuses[key] === 'thinking' || nextStatuses[key] === 'responding' || nextStatuses[key] === 'streaming') {
+          nextStatuses[key] = 'done';
+        }
+      }
+      return { isRunning: false, agentStatuses: nextStatuses };
+    });
+  }, [onStateChange]);
+
+  const restoreStream = useCallback((session: RestoreSessionData) => {
+    onStateChange(() => ({
+      query: session.query,
+      nodes: session.nodes,
+      edges: session.edges,
+      structuredOutput: session.structuredOutput,
+      agentThoughts: {},
+      agentStatuses: {},
+      isRunning: false,
+      hasRun: true
+    }));
     sessionIndexRef.current = 0;
+    setProcessedQuery(null);
+    setShowContinuation(true);
+  }, [onStateChange]);
+
+  const clearStream = useCallback(() => {
+    onStateChange(() => ({
+      query: '',
+      nodes: [],
+      edges: [],
+      structuredOutput: null,
+      agentThoughts: {},
+      agentStatuses: {},
+      isRunning: false,
+      hasRun: false
+    }));
+    sessionIndexRef.current = 0;
+    setProcessedQuery(null);
+    setShowContinuation(false);
     if (continuationTimeoutRef.current) {
       clearTimeout(continuationTimeoutRef.current);
       continuationTimeoutRef.current = null;
     }
-  }, []);
+  }, [onStateChange]);
 
   const addNode = useCallback((node: GraphNode) => {
-    setNodes((prev) => {
-      const filtered = prev.filter(n => n.id !== node.id);
-      return [...filtered, node];
+    onStateChange((prev) => {
+      const filtered = prev.nodes.filter(n => n.id !== node.id);
+      return { nodes: [...filtered, node] };
     });
-  }, []);
+  }, [onStateChange]);
 
   const addEdge = useCallback((edge: GraphEdge) => {
-    setEdges((prev) => {
-      const filtered = prev.filter(e => e.id !== edge.id);
-      return [...filtered, edge];
+    onStateChange((prev) => {
+      const filtered = prev.edges.filter(e => e.id !== edge.id);
+      return { edges: [...filtered, edge] };
     });
-  }, []);
+  }, [onStateChange]);
+
+  // Compute status
+  let computedStatus: SessionStatus = 'idle';
+  if (currentState.isRunning) {
+    computedStatus = 'running';
+  } else if (currentState.hasRun) {
+    if (showContinuation) {
+      computedStatus = 'ready_for_continuation';
+    } else {
+      computedStatus = 'complete';
+    }
+  } else {
+    const hasError = Object.values(currentState.agentStatuses).some(s => s === 'error');
+    if (hasError) {
+      computedStatus = 'error';
+    } else {
+      computedStatus = 'idle';
+    }
+  }
+
+  // Compute activeAgents list
+  const activeAgents = Object.entries(currentState.agentStatuses)
+    .filter((entry) => entry[1] === 'thinking' || entry[1] === 'responding' || entry[1] === 'streaming')
+    .map((entry) => entry[0] as AgentId);
 
   return {
-    query,
-    nodes,
-    edges,
-    events,
-    status,
-    verdict,
+    query: currentState.query,
+    nodes: currentState.nodes,
+    edges: currentState.edges,
+    status: computedStatus,
+    verdict: currentState.structuredOutput as string,
     activeAgents,
     processedQuery,
-    agentThoughts,
-    startSession,
-    restoreSession,
+    agentThoughts: currentState.agentThoughts,
+    startStream,
+    stopStream,
+    restoreStream,
+    clearStream,
     addNode,
     addEdge,
-    clearSession,
-    isContinuationReady: status === 'ready_for_continuation' || status === 'complete',
-    currentSessionSummary: {
-      nodeCount: nodes.length,
-      nodeSummaries: nodes
-        .filter(n => ['feature','milestone','claim'].includes(n.type))
-        .slice(0, 8)
-        .map(n => n.label + ': ' + n.content.slice(0, 60)),
-      previousQuery: lastQuery,
-      mode: currentMode
-    }
+    isContinuationReady: showContinuation || (!currentState.isRunning && currentState.hasRun),
   };
 }

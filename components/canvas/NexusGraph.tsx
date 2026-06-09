@@ -50,22 +50,22 @@ function sanitizeLabel(label: string): string {
 export interface NexusGraphProps {
   nodes: GraphNode[];
   edges: GraphEdge[];
-  activeAgents: AgentId[];
+  activeAgents?: AgentId[];
   onNodeClick?: (node: GraphNode | null) => void;
   /** ID of the currently selected node — triggers white selection ring */
   selectedNodeId?: string | null;
   mode: NexusMode;
-  status: 'idle' | 'running' | 'complete' | 'error' | 'ready_for_continuation';
+  isLoading: boolean;
 }
 
 export default function NexusGraph({
   nodes,
   edges,
-  activeAgents,
+  activeAgents = [],
   onNodeClick,
   selectedNodeId,
   mode,
-  status
+  isLoading
 }: NexusGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
@@ -1009,7 +1009,7 @@ export default function NexusGraph({
     <div 
       className="w-full h-full relative overflow-hidden"
       data-mode={mode}
-      data-status={status}
+      data-status={isLoading ? 'running' : 'complete'}
       style={{
         backgroundColor: 'var(--nx-canvas-tint)',
         backgroundImage: 'radial-gradient(var(--nx-canvas-grid) 1.5px, transparent 1.5px)',

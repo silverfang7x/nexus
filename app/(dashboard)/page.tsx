@@ -11,7 +11,7 @@ import { saveSession, getSessions, NexusSession } from '@/lib/sessionStorage';
 import { useAgentStream } from '@/hooks/useAgentStream';
 import { useGraph } from '@/hooks/useGraph';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { AgentId, AgentStatus, NexusMode, GraphNode, AgentEvent } from '@/types/nexus';
+import { AgentId, NexusMode, GraphNode, AgentEvent, AllModeStates, createBlankModeState, ModeState } from '@/types/nexus';
 import { getAgentColor } from '@/components/canvas/GraphNode';
 import NodeDetailPanel from '@/components/canvas/NodeDetailPanel';
 import { CanvasLoader } from '@/components/canvas/CanvasLoader';
@@ -199,8 +199,59 @@ function FAB({
 // ─── main dashboard ──────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { query, nodes, edges, events, status, verdict, activeAgents, processedQuery, agentThoughts, startSession, restoreSession, addNode, addEdge, clearSession, isContinuationReady } =
-    useAgentStream();
+  const [modeStates, setModeStates] = useState<AllModeStates>({
+    debate: createBlankModeState(),
+    research: createBlankModeState(),
+    code: createBlankModeState(),
+    plan: createBlankModeState()
+  });
+
+  const [activeMode, setActiveMode] = useState<NexusMode>('debate');
+
+  const updateModeState = useCallback((
+    mode: NexusMode,
+    updateFn: (prev: ModeState) => Partial<ModeState>
+  ) => {
+    setModeStates(prev => {
+      const currentState = prev[mode];
+      const updates = updateFn(currentState);
+      return {
+        ...prev,
+        [mode]: { ...currentState, ...updates }
+      };
+    });
+  }, []);
+
+  const currentState = modeStates[activeMode];
+
+  const debateStream = useAgentStream('debate', modeStates.debate, useCallback((fn: (prev: ModeState) => Partial<ModeState>) => updateModeState('debate', fn), [updateModeState]));
+  const researchStream = useAgentStream('research', modeStates.research, useCallback((fn: (prev: ModeState) => Partial<ModeState>) => updateModeState('research', fn), [updateModeState]));
+  const codeStream = useAgentStream('code', modeStates.code, useCallback((fn: (prev: ModeState) => Partial<ModeState>) => updateModeState('code', fn), [updateModeState]));
+  const planStream = useAgentStream('plan', modeStates.plan, useCallback((fn: (prev: ModeState) => Partial<ModeState>) => updateModeState('plan', fn), [updateModeState]));
+
+  const activeStream = {
+    debate: debateStream,
+    research: researchStream,
+    code: codeStream,
+    plan: planStream
+  }[activeMode];
+
+  const {
+    query,
+    nodes,
+    edges,
+    status,
+    verdict,
+    activeAgents,
+    processedQuery,
+    startStream,
+    addNode,
+    addEdge,
+    clearStream,
+    isContinuationReady
+  } = activeStream;
+
+  const clearSession = clearStream;
 
   useGraph(nodes, edges);
 
@@ -223,7 +274,6 @@ export default function Dashboard() {
 
   const isMobile = useMediaQuery('(max-width: 767px)');
 
-  const [activeMode, setActiveMode] = useState<NexusMode>('debate');
   const [sessionNum, setSessionNum] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('nx-session-count');
@@ -239,7 +289,7 @@ export default function Dashboard() {
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [expandingNode, setExpandingNode] = useState<string | null>(null);
 
-  const handleExpandTasks = useCallback(async (node: GraphNode) => {
+  const handleExpandTasks = async (node: GraphNode) => {
     setExpandingNode(node.id);
     
     // Build project context from existing nodes
@@ -298,7 +348,7 @@ export default function Dashboard() {
       setExpandingNode(null);
       setSelectedNode(null);  // close the detail panel
     }
-  }, [nodes, addNode, addEdge]);
+  };
 
   // --- Session History State & Refs ---
   const [sessions, setSessions] = useState<NexusSession[]>(() => {
@@ -308,54 +358,77 @@ export default function Dashboard() {
     return [];
   });
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [inputQuery, setInputQuery] = useState('');
   const [graphScale, setGraphScale] = useState(1);
 
-  const startTimestampRef = useRef<number>(0);
-  const [runInProgress, setRunInProgress] = useState<boolean>(false);
+  const startTimestampRef = useRef<Record<NexusMode, number>>({
+    debate: 0,
+    research: 0,
+    code: 0,
+    plan: 0
+  });
+  const [runsInProgress, setRunsInProgress] = useState<Record<NexusMode, boolean>>({
+    debate: false,
+    research: false,
+    code: false,
+    plan: false
+  });
 
   // Save session when run completes
   useEffect(() => {
-    if (status === 'complete' && runInProgress) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setRunInProgress(false);
-      const durationMs = Date.now() - startTimestampRef.current;
-      const newSession: NexusSession = {
-        id: '', // to be assigned by saveSession
-        mode: activeMode,
-        query: query,
-        cleanQuery: processedQuery?.cleanQuery || query,
-        nodes,
-        edges,
-        structuredOutput: verdict,
-        timestamp: Date.now(),
-        durationMs
-      };
-      saveSession(newSession);
-      const updated = getSessions();
-      setSessions(updated);
-      setActiveSessionId('001'); // newly saved is always the most recent (001)
-    }
-  }, [status, nodes, edges, verdict, activeMode, query, processedQuery, runInProgress]);
+    const modes: NexusMode[] = ['debate', 'research', 'code', 'plan'];
+    const streams = {
+      debate: debateStream,
+      research: researchStream,
+      code: codeStream,
+      plan: planStream
+    };
 
-  const handleQuerySubmit = useCallback(
-    (submittedQuery: string, isContinuation = false, forceMock = false) => {
-      const isMock = forceMock || submittedQuery.includes('--mock');
-      const clean = submittedQuery.replace('--mock', '').trim();
-      
-      startTimestampRef.current = Date.now();
-      setRunInProgress(true);
-      setActiveSessionId(null);
-      setInputQuery(clean);
+    modes.forEach(mode => {
+      const stream = streams[mode];
+      if (stream.status === 'complete' && runsInProgress[mode]) {
+        setRunsInProgress(prev => ({ ...prev, [mode]: false }));
+        const durationMs = Date.now() - startTimestampRef.current[mode];
+        const newSession: NexusSession = {
+          id: '', // to be assigned by saveSession
+          mode: mode,
+          query: stream.query,
+          cleanQuery: stream.processedQuery?.cleanQuery || stream.query,
+          nodes: stream.nodes,
+          edges: stream.edges,
+          structuredOutput: stream.verdict,
+          timestamp: Date.now(),
+          durationMs
+        };
+        saveSession(newSession);
+        const updated = getSessions();
+        setSessions(updated);
+        setActiveSessionId('001'); // newly saved is always the most recent (001)
+      }
+    });
+  }, [
+    debateStream,
+    researchStream,
+    codeStream,
+    planStream,
+    runsInProgress
+  ]);
 
-      const nextNum = parseInt(localStorage.getItem('nx-session-count') || '0', 10) + 1;
-      localStorage.setItem('nx-session-count', String(nextNum));
-      setSessionNum(nextNum);
-      
-      startSession(activeMode, clean, isMock, isContinuation);
-    },
-    [activeMode, startSession]
-  );
+  const handleQuerySubmit = (submittedQuery: string, isContinuation = false, forceMock = false) => {
+    const isMock = forceMock || submittedQuery.includes('--mock');
+    const clean = submittedQuery.replace('--mock', '').trim();
+    
+    // eslint-disable-next-line react-hooks/purity
+    startTimestampRef.current[activeMode] = Date.now();
+    setRunsInProgress(prev => ({ ...prev, [activeMode]: true }));
+    setActiveSessionId(null);
+    updateModeState(activeMode, () => ({ query: clean }));
+
+    const nextNum = parseInt(localStorage.getItem('nx-session-count') || '0', 10) + 1;
+    localStorage.setItem('nx-session-count', String(nextNum));
+    setSessionNum(nextNum);
+    
+    startStream(clean, isMock, isContinuation);
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -374,24 +447,32 @@ export default function Dashboard() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeMode, status, handleQuerySubmit]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMode, status]);
 
   // Handle restoring a session
-  const handleRestoreSession = useCallback((session: NexusSession) => {
-    restoreSession(session);
+  const handleRestoreSession = (session: NexusSession) => {
+    const targetMode = session.mode;
+    const streams = {
+      debate: debateStream,
+      research: researchStream,
+      code: codeStream,
+      plan: planStream
+    };
+    streams[targetMode].restoreStream(session);
+
     setActiveSessionId(session.id);
-    setInputQuery(session.query);
     setActiveMode(session.mode);
 
     // Apply scale flash effect
     setGraphScale(0.97);
     setTimeout(() => setGraphScale(1), 150);
-  }, [restoreSession, setActiveSessionId, setInputQuery, setActiveMode, setGraphScale]);
+  };
 
   const closeAll = useCallback(() => {
     setAgentsOpen(false);
     setOutputOpen(false);
-  }, []);
+  }, [setAgentsOpen, setOutputOpen]);
 
   // Lock body scroll while a sheet is open on mobile
   useEffect(() => {
@@ -439,48 +520,14 @@ export default function Dashboard() {
 
   // Build panel data from live event stream
   const panelsData = CORE_AGENTS.map((agentId) => {
+    const agentStatus = currentState.agentStatuses[agentId] ?? 'idle';
+    const streamingText = currentState.agentThoughts[agentId] ?? '';
     const isActive = activeAgents.includes(agentId);
-    const agentEvents = events.filter((e) => e.agentId === agentId);
-    // Legacy thoughts array for compatibility (non-streaming fallback)
-    const thoughts = agentEvents
-      .map((e) => e.payload.text ?? '')
-      .filter(Boolean);
-
-    // Streaming text accumulated character-by-character
-    const streamingText = agentThoughts[agentId] ?? '';
-
-    // Has this agent received any streaming tokens in this session?
-    const hasStreaming = agentEvents.some((e) => e.type === 'streaming');
-    const isStreamingNow = isActive && hasStreaming && agentEvents.some((e) => e.type === 'streaming') &&
-      !agentEvents.some((e) => e.type === 'complete' || e.type === 'done');
-
-    let agentStatus: AgentStatus = 'idle';
-    if (status === 'running') {
-      if (isStreamingNow) {
-        agentStatus = 'streaming';
-      } else if (isActive) {
-        agentStatus = 'responding';
-      } else if (agentEvents.length > 0) {
-        const last = agentEvents[agentEvents.length - 1];
-        agentStatus =
-          last.type === 'done'
-            ? 'done'
-            : last.type === 'error'
-            ? 'error'
-            : last.type === 'complete'
-            ? 'done'
-            : 'thinking';
-      }
-    } else if (status === 'complete') {
-      agentStatus = 'done';
-    } else if (status === 'error') {
-      agentStatus = 'error';
-    }
 
     return {
       agentId,
       status: agentStatus,
-      thoughts: status === 'idle' ? [] : thoughts,
+      thoughts: streamingText ? [streamingText] : [],
       streamingText,
       isActive,
     };
@@ -541,11 +588,17 @@ export default function Dashboard() {
             : null
         }
         onAcceptSuggestion={(m) => setActiveMode(m)}
-        query={inputQuery}
-        onQueryChange={setInputQuery}
+        query={currentState.query}
+        onQueryChange={(q) => updateModeState(activeMode, () => ({ query: q }))}
         isContinuationReady={isContinuationReady}
         nodeCount={nodes.length}
         onClear={clearSession}
+        hasRunStates={{
+          debate: modeStates.debate.hasRun,
+          research: modeStates.research.hasRun,
+          code: modeStates.code.hasRun,
+          plan: modeStates.plan.hasRun
+        }}
       />
       <div
         style={{
@@ -557,7 +610,7 @@ export default function Dashboard() {
       />
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <VerdictPanel 
-          verdict={verdict} 
+          output={verdict} 
           mode={activeMode}
           nodeCount={nodes.length}
           edgeCount={edges.length}
@@ -565,6 +618,7 @@ export default function Dashboard() {
           query={query}
           nodes={nodes}
           session={{ query, mode: activeMode, nodes, edges }}
+          hasRun={currentState.hasRun}
         />
       </div>
     </div>
@@ -767,11 +821,10 @@ export default function Dashboard() {
           <NexusGraph
             nodes={nodes}
             edges={edges}
-            activeAgents={activeAgents}
             onNodeClick={setSelectedNode}
             selectedNodeId={selectedNode?.id ?? null}
             mode={activeMode}
-            status={status}
+            isLoading={status === 'running'}
           />
 
           {/* Empty-state overlay */}
@@ -855,11 +908,17 @@ export default function Dashboard() {
                     : null
                 }
                 onAcceptSuggestion={(m) => setActiveMode(m)}
-                query={inputQuery}
-                onQueryChange={setInputQuery}
+                query={currentState.query}
+                onQueryChange={(q) => updateModeState(activeMode, () => ({ query: q }))}
                 isContinuationReady={isContinuationReady}
                 nodeCount={nodes.length}
                 onClear={clearSession}
+                hasRunStates={{
+                  debate: modeStates.debate.hasRun,
+                  research: modeStates.research.hasRun,
+                  code: modeStates.code.hasRun,
+                  plan: modeStates.plan.hasRun
+                }}
               />
             </div>
             <div
@@ -871,7 +930,7 @@ export default function Dashboard() {
             />
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <VerdictPanel 
-                verdict={verdict} 
+                output={verdict} 
                 mode={activeMode}
                 nodeCount={nodes.length}
                 edgeCount={edges.length}
@@ -879,6 +938,7 @@ export default function Dashboard() {
                 query={query}
                 nodes={nodes}
                 session={{ query, mode: activeMode, nodes, edges }}
+                hasRun={currentState.hasRun}
               />
             </div>
           </div>

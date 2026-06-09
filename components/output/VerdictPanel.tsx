@@ -7,19 +7,20 @@ import { exportToMarkdown } from '@/lib/exportMarkdown';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface VerdictPanelProps {
-  verdict: string;
+  output: unknown;
   mode: NexusMode;
-  nodeCount: number;
-  edgeCount: number;
-  isRunning: boolean;
-  query: string;
-  nodes: GraphNode[];
+  nodeCount?: number;
+  edgeCount?: number;
+  isRunning?: boolean;
+  query?: string;
+  nodes?: GraphNode[];
   session?: {
     query: string;
     mode: NexusMode;
     nodes: GraphNode[];
     edges: GraphEdge[];
   };
+  hasRun?: boolean;
 }
 
 interface DebateOutput {
@@ -518,15 +519,17 @@ function RawTextView({ verdict }: { verdict: string }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function VerdictPanel({
-  verdict,
+  output,
   mode,
-  nodeCount,
-  edgeCount,
-  isRunning,
-  query,
-  nodes,
+  nodeCount = 0,
+  edgeCount = 0,
+  isRunning = false,
+  query = '',
+  nodes = [],
   session,
+  hasRun = true,
 }: VerdictPanelProps) {
+  const verdict = typeof output === 'string' ? output : (output ? JSON.stringify(output) : '');
   const [copied, setCopied] = useState(false);
   const [exportLabel, setExportLabel] = useState('EXPORT');
 
@@ -630,7 +633,9 @@ export default function VerdictPanel({
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', padding: 16 }}>
         <div className="label-xs mb-4">OUTPUT</div>
         <div style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ ...MONO, fontSize: 11, color: 'var(--nx-text-muted)' }}>Awaiting synthesis...</span>
+          <span style={{ ...MONO, fontSize: 11, color: 'var(--nx-text-muted)' }}>
+            {hasRun === false ? "Run a query to see output" : "Awaiting synthesis..."}
+          </span>
         </div>
       </div>
     );
