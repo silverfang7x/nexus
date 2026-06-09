@@ -5,6 +5,8 @@ import React from 'react';
 export function CanvasLoader({ width, height }: { width: number; height: number }) {
   return (
     <div
+      data-width={width}
+      data-height={height}
       style={{
         position: 'absolute',
         inset: 0,

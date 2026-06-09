@@ -80,7 +80,15 @@ export default function ModeSelector({
   return (
     <div className="w-full bg-transparent">
       {/* Mode Tabs */}
-      <div className="flex w-full flex-row">
+      <div 
+        className="flex w-full flex-row"
+        style={{
+          overflowX: 'auto',
+          flexWrap: 'nowrap',
+          scrollbarWidth: 'none',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
         {modes.map((mode) => {
           const isActive = activeMode === mode;
           return (
@@ -95,6 +103,8 @@ export default function ModeSelector({
                 fontWeight: 700,
                 fontSize: '11px',
                 letterSpacing: '0.05em',
+                flexShrink: 0,
+                minWidth: '80px',
                 color: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.35)',
                 borderBottom: isActive
                   ? '2px solid #ffffff'
@@ -241,6 +251,15 @@ export default function ModeSelector({
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.preventDefault();
+                if (query.trim() && !isRunning) {
+                  setBannerDismissed(false);
+                  onSubmit(query, isContinuationReady);
+                }
+              }
+            }}
             className="w-full block resize-none p-2.5 rounded-none border outline-none transition-colors duration-150"
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.03)',

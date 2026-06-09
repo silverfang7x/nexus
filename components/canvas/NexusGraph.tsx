@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
-import { motion, AnimatePresence } from 'framer-motion';
 import { GraphNode, GraphEdge, AgentId, EdgeType, NexusMode } from '@/types/nexus';
 import { getAgentColor } from './GraphNode';
 
@@ -1010,6 +1009,7 @@ export default function NexusGraph({
     <div 
       className="w-full h-full relative overflow-hidden"
       data-mode={mode}
+      data-status={status}
       style={{
         backgroundColor: 'var(--nx-canvas-tint)',
         backgroundImage: 'radial-gradient(var(--nx-canvas-grid) 1.5px, transparent 1.5px)',

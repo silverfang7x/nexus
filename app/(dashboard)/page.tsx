@@ -33,6 +33,28 @@ const MODE_AGENTS: Record<NexusMode, AgentId[]> = {
   plan: ['advocate', 'factchecker', 'synthesizer'],
 };
 
+const DEMO_QUERIES: Record<NexusMode, { 
+  query: string; 
+  label: string; 
+}> = {
+  debate: { 
+    query: 'Should social media platforms be held legally responsible for mental health damage to teenagers?',
+    label: 'Social Media Liability'
+  },
+  plan: { 
+    query: 'Build a peer-to-peer skill exchange platform for Indian college students — like Fiverr but for learning',
+    label: 'Skill Exchange Platform'
+  },
+  research: {
+    query: 'What are the real tradeoffs between RAG and fine-tuning for production LLM applications in 2026?',
+    label: 'RAG vs Fine-tuning'
+  },
+  code: {
+    query: 'https://github.com/vercel/next.js',
+    label: 'Next.js Codebase'
+  }
+};
+
 const SHEET_SPRING = { type: 'spring', damping: 28, stiffness: 300 } as const;
 
 // ─── sub-components ──────────────────────────────────────────────────────────
@@ -202,6 +224,15 @@ export default function Dashboard() {
   const isMobile = useMediaQuery('(max-width: 767px)');
 
   const [activeMode, setActiveMode] = useState<NexusMode>('debate');
+  const [sessionNum, setSessionNum] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('nx-session-count');
+      if (stored) return parseInt(stored, 10);
+      localStorage.setItem('nx-session-count', '1');
+      return 1;
+    }
+    return 1;
+  });
   const [timeString, setTimeString] = useState('');
   const [agentsOpen, setAgentsOpen] = useState(false);
   const [outputOpen, setOutputOpen] = useState(false);
@@ -281,12 +312,13 @@ export default function Dashboard() {
   const [graphScale, setGraphScale] = useState(1);
 
   const startTimestampRef = useRef<number>(0);
-  const runInProgressRef = useRef<boolean>(false);
+  const [runInProgress, setRunInProgress] = useState<boolean>(false);
 
   // Save session when run completes
   useEffect(() => {
-    if (status === 'complete' && runInProgressRef.current) {
-      runInProgressRef.current = false;
+    if (status === 'complete' && runInProgress) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRunInProgress(false);
       const durationMs = Date.now() - startTimestampRef.current;
       const newSession: NexusSession = {
         id: '', // to be assigned by saveSession
@@ -304,7 +336,45 @@ export default function Dashboard() {
       setSessions(updated);
       setActiveSessionId('001'); // newly saved is always the most recent (001)
     }
-  }, [status, nodes, edges, verdict, activeMode, query, processedQuery]);
+  }, [status, nodes, edges, verdict, activeMode, query, processedQuery, runInProgress]);
+
+  const handleQuerySubmit = useCallback(
+    (submittedQuery: string, isContinuation = false, forceMock = false) => {
+      const isMock = forceMock || submittedQuery.includes('--mock');
+      const clean = submittedQuery.replace('--mock', '').trim();
+      
+      startTimestampRef.current = Date.now();
+      setRunInProgress(true);
+      setActiveSessionId(null);
+      setInputQuery(clean);
+
+      const nextNum = parseInt(localStorage.getItem('nx-session-count') || '0', 10) + 1;
+      localStorage.setItem('nx-session-count', String(nextNum));
+      setSessionNum(nextNum);
+      
+      startSession(activeMode, clean, isMock, isContinuation);
+    },
+    [activeMode, startSession]
+  );
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape closes the node detail panel
+      if (e.key === 'Escape') {
+        setSelectedNode(null);
+      }
+      // Cmd/Ctrl + D triggers DEMO mode
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        const scenario = DEMO_QUERIES[activeMode];
+        if (scenario && status !== 'running') {
+          handleQuerySubmit(scenario.query, false, true);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeMode, status, handleQuerySubmit]);
 
   // Handle restoring a session
   const handleRestoreSession = useCallback((session: NexusSession) => {
@@ -316,7 +386,7 @@ export default function Dashboard() {
     // Apply scale flash effect
     setGraphScale(0.97);
     setTimeout(() => setGraphScale(1), 150);
-  }, [restoreSession]);
+  }, [restoreSession, setActiveSessionId, setInputQuery, setActiveMode, setGraphScale]);
 
   const closeAll = useCallback(() => {
     setAgentsOpen(false);
@@ -366,21 +436,6 @@ export default function Dashboard() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
-
-  const handleQuerySubmit = useCallback(
-    (submittedQuery: string, isContinuation = false) => {
-      const isMock = submittedQuery.includes('--mock');
-      const clean = submittedQuery.replace('--mock', '').trim();
-      
-      startTimestampRef.current = Date.now();
-      runInProgressRef.current = true;
-      setActiveSessionId(null);
-      setInputQuery(clean);
-      
-      startSession(activeMode, clean, isMock, isContinuation);
-    },
-    [activeMode, startSession]
-  );
 
   // Build panel data from live event stream
   const panelsData = CORE_AGENTS.map((agentId) => {
@@ -521,9 +576,13 @@ export default function Dashboard() {
     <button
       type="button"
       disabled={status === 'running'}
-      onClick={() =>
-        startSession('debate', 'Should AI replace human workers?', true)
-      }
+      onClick={() => {
+        const scenario = DEMO_QUERIES[activeMode];
+        if (scenario) {
+          handleQuerySubmit(scenario.query, false, true);
+        }
+      }}
+      title={DEMO_QUERIES[activeMode]?.label || 'Run Scenario'}
       style={{
         fontFamily: 'var(--nx-font-mono), monospace',
         fontSize: 10,
@@ -664,7 +723,7 @@ export default function Dashboard() {
                 color: 'var(--nx-text-muted)',
               }}
             >
-              {activeSessionId ? `Session ${activeSessionId}` : 'Live Session'}
+              {activeSessionId ? `Session ${activeSessionId}` : `Session ${String(sessionNum).padStart(3, '0')}`}
             </span>
           </div>
         </div>

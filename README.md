@@ -2,6 +2,18 @@
 
 One platform. Four intelligence modes. Powered by a live force-directed argument graph.
 
+## Demo
+- **Plan Mode (with expanded tasks)**: ![Screenshot of plan mode with expanded tasks](./public/demo-plan.png)
+- **Debate Mode (with FOR/AGAINST clustering)**: ![Screenshot of debate mode with FOR/AGAINST clustering](./public/demo-debate.png)
+- **Exported Markdown**: ![Screenshot of exported markdown file](./public/demo-export.png)
+
+## Key Features
+- **Query Preprocessor**: Built-in spell correction and intent detection to seamlessly route user prompts.
+- **4 Intelligence Modes**: Tailored environments for Debate, Research, Code, and Plan.
+- **Task Decomposer**: Expand milestones into detailed daily tasks directly on the graph.
+- **Continuation Mode**: Keep building and extending existing sessions with follow-up prompts.
+- **Markdown Export**: Generate and download a complete, structured markdown blueprint of the session.
+
 ## What it does
 
 NEXUS is an agentic reasoning system where specialized AI agents collaborate, argue, and synthesize knowledge in real-time. Every thought, claim, and connection is visualized as a living graph on an infinite canvas.
