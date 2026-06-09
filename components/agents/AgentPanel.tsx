@@ -54,13 +54,12 @@ export default function AgentPanel({
 }: AgentPanelProps) {
   const agentColor = getAgentColor(agentId);
   const hexColor = getAgentHexColor(agentId);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const thoughtRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom as streaming tokens arrive
   useEffect(() => {
-    const el = scrollRef.current;
-    if (el) {
-      el.scrollTop = el.scrollHeight;
+    if (thoughtRef.current) {
+      thoughtRef.current.scrollTop = thoughtRef.current.scrollHeight;
     }
   }, [streamingText]);
 
@@ -138,6 +137,10 @@ export default function AgentPanel({
         padding: '10px 12px',
         fontFamily: 'var(--nx-font-display), sans-serif',
         transition: 'box-shadow 0.3s ease-in-out',
+        minHeight: '80px',
+        maxHeight: '200px',
+        display: 'flex',
+        flexDirection: 'column',
         ...glowStyle,
       }}
     >
@@ -199,12 +202,14 @@ export default function AgentPanel({
       {hasStreamingText ? (
         /* ── Live Streaming View ── */
         <div
-          ref={scrollRef}
-          className="nx-stream-scroll"
+          ref={thoughtRef}
+          className="agent-thought-text"
           style={{
-            minHeight: '52px',
-            maxHeight: '120px',
+            flex: 1,
+            minHeight: 0,
             overflowY: 'auto',
+            overflowX: 'hidden',
+            maxHeight: '140px',
             position: 'relative',
           }}
         >

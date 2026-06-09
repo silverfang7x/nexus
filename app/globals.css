@@ -363,3 +363,26 @@ body > * {
   to   { transform: rotate(360deg) translateX(35px); }
 }
 
+/* Thin custom scrollbar for VerdictPanel, agent thought text area, and left sidebar agent column */
+.verdict-panel::-webkit-scrollbar,
+.agent-thought-text::-webkit-scrollbar,
+.left-agent-column::-webkit-scrollbar {
+  width: 4px;
+}
+.verdict-panel::-webkit-scrollbar-track,
+.agent-thought-text::-webkit-scrollbar-track,
+.left-agent-column::-webkit-scrollbar-track {
+  background: transparent;
+}
+.verdict-panel::-webkit-scrollbar-thumb,
+.agent-thought-text::-webkit-scrollbar-thumb,
+.left-agent-column::-webkit-scrollbar-thumb {
+  background: var(--nx-border);
+  border-radius: 2px;
+}
+.verdict-panel::-webkit-scrollbar-thumb:hover,
+.agent-thought-text::-webkit-scrollbar-thumb:hover,
+.left-agent-column::-webkit-scrollbar-thumb:hover {
+  background: var(--nx-border-hover);
+}
+

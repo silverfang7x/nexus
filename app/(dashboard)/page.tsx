@@ -608,7 +608,7 @@ export default function Dashboard() {
           flexShrink: 0,
         }}
       />
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <VerdictPanel 
           output={verdict} 
           mode={activeMode}
@@ -683,14 +683,25 @@ export default function Dashboard() {
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
-    <>
-      <SessionBar
-        sessions={sessions}
-        activeSessionId={activeSessionId}
-        onRestoreSession={handleRestoreSession}
-        currentMode={activeMode}
-        isRunning={status === 'running'}
-      />
+    <div
+      className="nexus-layout"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '280px 1fr 360px',
+        gridTemplateRows: isMobile ? 'auto 1fr' : '36px 1fr',
+        height: '100vh',
+        overflow: 'hidden',
+      }}
+    >
+      <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
+        <SessionBar
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onRestoreSession={handleRestoreSession}
+          currentMode={activeMode}
+          isRunning={status === 'running'}
+        />
+      </div>
       {/* ── global style tag ───────────────────────────────────────────── */}
       <style>{`
         /* thin custom scrollbar shared across panels */
@@ -715,14 +726,15 @@ export default function Dashboard() {
       <main
         data-mode={activeMode}
         style={{
+          gridColumn: isMobile ? 'auto' : '1 / -1',
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : '280px 1fr 320px',
+          gridTemplateColumns: isMobile ? '1fr' : '280px 1fr 360px',
           gridTemplateRows: isMobile ? '40px 1fr 32px' : '40px 1fr 32px',
           gridTemplateAreas: isMobile
             ? `"topbar" "canvas" "statusbar"`
             : `"topbar topbar topbar" "sidebar canvas rightpanel" "statusbar statusbar statusbar"`,
-          width: '100vw',
-          height: 'calc(100vh - 36px)',
+          width: '100%',
+          height: '100%',
           overflow: 'hidden',
           backgroundColor: 'var(--nx-bg)',
         }}
@@ -785,14 +797,18 @@ export default function Dashboard() {
         {/* ── LEFT SIDEBAR (desktop only) ─────────────────────────────── */}
         {!isMobile && (
           <div
-            className="nx-thin-scroll"
+            className="nx-thin-scroll left-agent-column"
             style={{
               gridArea: 'sidebar',
               backgroundColor: 'var(--nx-bg-elevated)',
               borderRight: '1px solid var(--nx-border)',
-              overflowY: 'auto',
               padding: '12px',
               zIndex: 20,
+              height: '100%',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
             }}
           >
             {renderedAgentPanels}
@@ -928,7 +944,7 @@ export default function Dashboard() {
                 flexShrink: 0,
               }}
             />
-            <div style={{ flex: 1, overflow: 'hidden' }}>
+            <div style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <VerdictPanel 
                 output={verdict} 
                 mode={activeMode}
@@ -1104,6 +1120,6 @@ export default function Dashboard() {
           />
         )}
       </AnimatePresence>
-    </>
+    </div>
   );
 }

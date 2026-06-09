@@ -195,7 +195,7 @@ function ResearchView({ data }: { data: ResearchOutput }) {
                   {f.claim}
                 </span>
                 {f.source && (
-                  <div style={{ ...MONO, fontSize: 9, color: 'var(--nx-text-muted)', marginTop: 2 }}>
+                  <div style={{ ...MONO, fontSize: 9, color: 'var(--nx-text-muted)', marginTop: 2, wordBreak: 'break-all' }}>
                     {f.source}
                   </div>
                 )}
@@ -408,7 +408,15 @@ function CodeView({ data }: { data: CodeOutput }) {
       {(data.issuesFound ?? []).length > 0 && (
         <div style={SECTION}>
           <SectionLabel>ISSUES FOUND</SectionLabel>
-          <div style={{ border: '1px solid var(--nx-border)', overflow: 'hidden' }}>
+          <div
+            className="code-issues-table"
+            style={{
+              border: '1px solid var(--nx-border)',
+              display: 'block',
+              overflowX: 'auto',
+              maxWidth: '100%',
+            }}
+          >
             {/* Header */}
             <div
               style={{
@@ -493,9 +501,30 @@ function CodeView({ data }: { data: CodeOutput }) {
 // ─── Fallback: raw text ───────────────────────────────────────────────────────
 
 function RawTextView({ verdict }: { verdict: string }) {
+  const isJson = verdict.trim().startsWith('{') || verdict.trim().startsWith('[');
+  
+  if (isJson) {
+    return (
+      <pre
+        style={{
+          ...MONO,
+          fontSize: '11px',
+          lineHeight: '1.6',
+          color: 'rgba(255,255,255,0.7)',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          overflowX: 'hidden',
+          margin: 0,
+        }}
+      >
+        {verdict}
+      </pre>
+    );
+  }
+
   const paragraphs = verdict.split(/\n\n|\n(?=[A-Z])/).filter(Boolean);
   return (
-    <div>
+    <div style={{ wordBreak: 'break-word' }}>
       {paragraphs.map((para, i) => (
         <p
           key={i}
@@ -507,6 +536,7 @@ function RawTextView({ verdict }: { verdict: string }) {
             borderLeft: i === 0 ? '2px solid var(--nx-synthesizer)' : undefined,
             paddingLeft: i === 0 ? 12 : undefined,
             marginBottom: i === 0 ? 20 : 16,
+            wordBreak: 'break-word',
           }}
         >
           {para}
@@ -649,7 +679,20 @@ export default function VerdictPanel({
     '#BA7517';
 
   return (
-    <div style={{ padding: 16, overflowY: 'auto', flexGrow: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div
+      className="verdict-panel"
+      style={{
+        padding: '16px 16px 0 16px',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        flex: '1 1 0%',
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        position: 'relative',
+      }}
+    >
       {/* Top metadata row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <span className="label-xs" style={{ color: modeColor, fontWeight: 700 }}>
@@ -685,8 +728,14 @@ export default function VerdictPanel({
           gap: 12,
           marginTop: 16,
           borderTop: '1px solid var(--nx-border)',
-          paddingTop: 16,
+          padding: '12px 16px',
+          marginLeft: -16,
+          marginRight: -16,
+          background: 'var(--nx-bg-elevated)',
           flexShrink: 0,
+          position: 'sticky',
+          bottom: 0,
+          zIndex: 10,
         }}
       >
         <button
