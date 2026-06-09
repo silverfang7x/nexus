@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { NexusMode, GraphNode } from '@/types/nexus';
-import ExportButton from './ExportButton';
+import { NexusMode, GraphNode, GraphEdge } from '@/types/nexus';
+import { exportToMarkdown } from '@/lib/exportMarkdown';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -14,6 +14,12 @@ export interface VerdictPanelProps {
   isRunning: boolean;
   query: string;
   nodes: GraphNode[];
+  session?: {
+    query: string;
+    mode: NexusMode;
+    nodes: GraphNode[];
+    edges: GraphEdge[];
+  };
 }
 
 interface DebateOutput {
@@ -519,8 +525,50 @@ export default function VerdictPanel({
   isRunning,
   query,
   nodes,
+  session,
 }: VerdictPanelProps) {
   const [copied, setCopied] = useState(false);
+  const [exportLabel, setExportLabel] = useState('EXPORT');
+
+  const handleExport = () => {
+    const activeSession = session || {
+      query,
+      mode,
+      nodes,
+      edges: [],
+    };
+
+    const markdown = exportToMarkdown({
+      query: activeSession.query,
+      mode: activeSession.mode,
+      nodes: activeSession.nodes,
+      edges: activeSession.edges || [],
+      verdict,
+      timestamp: Date.now(),
+    });
+
+    const blob = new Blob([markdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+
+    const slug = activeSession.query
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .split(' ')
+      .slice(0, 3)
+      .join('-');
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    a.download = `nexus-${activeSession.mode}-${slug}-${date}.md`;
+
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setExportLabel('EXPORTED ✓');
+    setTimeout(() => setExportLabel('EXPORT'), 2000);
+  };
 
   // Parse JSON at the top — MUST be before any early returns to obey Rules of Hooks
   const parsed = useMemo(() => {
@@ -645,13 +693,24 @@ export default function VerdictPanel({
         >
           {copied ? 'COPIED' : 'COPY'}
         </button>
-        <ExportButton
-          mode={mode}
-          query={query}
-          verdict={verdict}
-          nodes={nodes}
+        <button
+          type="button"
+          onClick={handleExport}
           disabled={!verdict}
-        />
+          style={{
+            ...actionButtonStyle,
+            cursor: !verdict ? 'not-allowed' : 'pointer',
+            opacity: !verdict ? 0.45 : 1,
+          }}
+          onMouseEnter={(e) => {
+            if (verdict) e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+          }}
+        >
+          {exportLabel}
+        </button>
       </div>
     </div>
   );
