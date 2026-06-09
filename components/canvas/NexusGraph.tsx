@@ -46,6 +46,57 @@ function sanitizeLabel(label: string): string {
     .trim();
 }
 
+function buildCodeTreeLayout(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  width: number,
+  height: number
+): Map<string, { x: number; y: number }> {
+  const positions = new Map<string, { x: number; y: number }>();
+  
+  const fileNodes = nodes.filter(n => n.type === 'file');
+  const issueNodes = nodes.filter(n => n.type === 'issue');
+  const fixNodes = nodes.filter(n => n.type === 'fix');
+  
+  const padding = 80;
+  const colWidth = (width - padding * 2) / 3;
+  
+  const fileSpacing = Math.min(
+    60, 
+    (height - padding * 2) / Math.max(fileNodes.length, 1)
+  );
+  fileNodes.forEach((node, i) => {
+    positions.set(node.id, {
+      x: padding + colWidth * 0.3,
+      y: padding + i * fileSpacing + fileSpacing / 2
+    });
+  });
+  
+  const issueSpacing = Math.min(
+    55,
+    (height - padding * 2) / Math.max(issueNodes.length, 1)
+  );
+  issueNodes.forEach((node, i) => {
+    positions.set(node.id, {
+      x: padding + colWidth * 1.2,
+      y: padding + i * issueSpacing + issueSpacing / 2
+    });
+  });
+  
+  const fixSpacing = Math.min(
+    60,
+    (height - padding * 2) / Math.max(fixNodes.length, 1)
+  );
+  fixNodes.forEach((node, i) => {
+    positions.set(node.id, {
+      x: padding + colWidth * 2.1,
+      y: padding + i * fixSpacing + fixSpacing / 2
+    });
+  });
+  
+  return positions;
+}
+
 
 export interface NexusGraphProps {
   nodes: GraphNode[];
@@ -258,8 +309,13 @@ export default function NexusGraph({
       })
       .on('end', (event, d) => {
         if (!event.active) sim.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
+        if (mode === 'code') {
+          d.fx = d.x;
+          d.fy = d.y;
+        } else {
+          d.fx = null;
+          d.fy = null;
+        }
       });
   };
 
@@ -271,23 +327,46 @@ export default function NexusGraph({
     // Get width and height from sizeRef
     const { width, height } = sizeRef.current;
 
-    // Map the new nodes list to simulation node objects to preserve coords
+    const svgWidth = width;
+    const fileNodes = nodes.filter(n => n.type === 'file');
+    const svgHeight = mode === 'code' ? Math.max(height, fileNodes.length * 60 + 160) : height;
+
     const existingNodesMap = new Map<string, SimNode>(
       simNodesRef.current.map(n => [n.id, n])
     );
 
-    const nextSimNodes: SimNode[] = nodes.map(node => {
-      const existing = existingNodesMap.get(node.id);
-      return {
-        ...node,
-        x: existing?.x ?? node.x ?? (width / 2 + (Math.random() - 0.5) * 80),
-        y: existing?.y ?? node.y ?? (height / 2 + (Math.random() - 0.5) * 80),
-        vx: existing?.vx ?? 0,
-        vy: existing?.vy ?? 0,
-        fx: existing?.fx ?? null,
-        fy: existing?.fy ?? null
-      };
-    });
+    let nextSimNodes: SimNode[];
+    if (mode === 'code') {
+      const positions = buildCodeTreeLayout(nodes, edges, svgWidth, svgHeight);
+      nextSimNodes = nodes.map(node => {
+        const existing = existingNodesMap.get(node.id);
+        const hasDragLock = existing && (existing.fx !== null && existing.fx !== undefined);
+        const xPos = hasDragLock ? existing.fx! : (positions.get(node.id)?.x ?? svgWidth / 2);
+        const yPos = hasDragLock ? existing.fy! : (positions.get(node.id)?.y ?? svgHeight / 2);
+        return {
+          ...node,
+          x: xPos,
+          y: yPos,
+          vx: 0,
+          vy: 0,
+          fx: xPos,
+          fy: yPos
+        };
+      });
+    } else {
+      nextSimNodes = nodes.map(node => {
+        const existing = existingNodesMap.get(node.id);
+        return {
+          ...node,
+          x: existing?.x ?? node.x ?? (width / 2 + (Math.random() - 0.5) * 80),
+          y: existing?.y ?? node.y ?? (height / 2 + (Math.random() - 0.5) * 80),
+          vx: existing?.vx ?? 0,
+          vy: existing?.vy ?? 0,
+          fx: existing?.fx ?? null,
+          fy: existing?.fy ?? null
+        };
+      });
+    }
 
     // Map links
     const nextSimLinks: SimLink[] = edges.map(edge => ({
@@ -295,133 +374,6 @@ export default function NexusGraph({
       source: edge.source,
       target: edge.target
     }));
-
-    if (mode === 'code') {
-      interface TreeNode {
-        id: string;
-        name: string;
-        type: string;
-        children: TreeNode[];
-        nodeRef?: SimNode;
-      }
-
-      const rootNode: TreeNode = { id: '__root__', name: 'Root', type: 'dir', children: [] };
-      const treeNodeMap = new Map<string, TreeNode>();
-      treeNodeMap.set('__root__', rootNode);
-
-      // 1. Add files to the tree, creating directory nodes on the fly
-      for (const node of nextSimNodes) {
-        if (node.type !== 'file') continue;
-
-        const parts = node.id.split('/');
-        let currentParent = rootNode;
-        let currentPath = '';
-
-        for (let i = 0; i < parts.length; i++) {
-          const part = parts[i];
-          currentPath = currentPath ? `${currentPath}/${part}` : part;
-
-          if (i === parts.length - 1) {
-            // Leaf node
-            const fileNode: TreeNode = {
-              id: node.id,
-              name: part,
-              type: 'file',
-              children: [],
-              nodeRef: node
-            };
-            currentParent.children.push(fileNode);
-            treeNodeMap.set(node.id, fileNode);
-          } else {
-            // Directory node
-            let dirNode = treeNodeMap.get(currentPath);
-            if (!dirNode) {
-              dirNode = {
-                id: currentPath,
-                name: part,
-                type: 'dir',
-                children: []
-              };
-              currentParent.children.push(dirNode);
-              treeNodeMap.set(currentPath, dirNode);
-            }
-            currentParent = dirNode;
-          }
-        }
-      }
-
-      // 2. Map issues to files
-      const fileForIssue = new Map<string, string>();
-      for (const edge of nextSimLinks) {
-        if (edge.type === 'rebuts' || edge.type === 'links' || edge.type === 'fixes' || edge.type === 'depends') {
-          const sourceId = typeof edge.source === 'string' ? edge.source : (edge.source as SimNode).id;
-          const targetId = typeof edge.target === 'string' ? edge.target : (edge.target as SimNode).id;
-          
-          const sourceNode = nextSimNodes.find(n => n.id === sourceId);
-          const targetNode = nextSimNodes.find(n => n.id === targetId);
-
-          if (sourceNode?.type === 'issue' && targetNode?.type === 'file') {
-            fileForIssue.set(sourceId, targetId);
-          } else if (targetNode?.type === 'issue' && sourceNode?.type === 'file') {
-            fileForIssue.set(targetId, sourceId);
-          }
-        }
-      }
-
-      for (const node of nextSimNodes) {
-        if (node.type !== 'issue') continue;
-        const fileId = fileForIssue.get(node.id);
-        const parentNode = fileId ? treeNodeMap.get(fileId) : rootNode;
-
-        if (parentNode) {
-          const issueNode: TreeNode = {
-            id: node.id,
-            name: node.label,
-            type: 'issue',
-            children: [],
-            nodeRef: node
-          };
-          parentNode.children.push(issueNode);
-          treeNodeMap.set(node.id, issueNode);
-        }
-      }
-
-      // 3. Add other generic nodes
-      for (const node of nextSimNodes) {
-        if (node.type !== 'file' && node.type !== 'issue' && !treeNodeMap.has(node.id)) {
-          const genericNode: TreeNode = {
-            id: node.id,
-            name: node.label,
-            type: node.type,
-            children: [],
-            nodeRef: node
-          };
-          rootNode.children.push(genericNode);
-          treeNodeMap.set(node.id, genericNode);
-        }
-      }
-
-      // 4. Run tree layout
-      const root = d3.hierarchy<TreeNode>(rootNode);
-      const treeLayout = d3.tree<TreeNode>().size([height - 100, width - 240]);
-      treeLayout(root);
-
-      // 5. Update nextSimNodes coords and lock them
-      root.each((d) => {
-        if (d.data.nodeRef) {
-          d.data.nodeRef.x = (d.y ?? 0) + 120;
-          d.data.nodeRef.y = (d.x ?? 0) + 50;
-          d.data.nodeRef.fx = d.data.nodeRef.x;
-          d.data.nodeRef.fy = d.data.nodeRef.y;
-        }
-      });
-    } else {
-      // Release force lock
-      for (const node of nextSimNodes) {
-        node.fx = null;
-        node.fy = null;
-      }
-    }
 
     simNodesRef.current = nextSimNodes;
 
@@ -432,8 +384,15 @@ export default function NexusGraph({
       linkForce.links(nextSimLinks);
     }
 
-    // Restart alpha on new nodes so they settle down after finding positions
-    sim.alpha(0.4).restart();
+    if (mode === 'code') {
+      sim
+        .force('charge', d3.forceManyBody().strength(-10))
+        .force('center', null)
+        .force('collision', null);
+      sim.alpha(0.1).restart();
+    } else {
+      sim.alpha(0.4).restart();
+    }
 
     let fitTimeout: ReturnType<typeof setTimeout> | undefined;
     if (nodes.length > 0 && !hasFittedRef.current) {
@@ -713,12 +672,12 @@ export default function NexusGraph({
     nodeContentEnter.append('rect')
       .attr('class', 'node-rect')
       .attr('x', -60)
-      .attr('y', -16)
+      .attr('y', -14)
       .attr('width', 120)
-      .attr('height', 32)
-      .attr('rx', 4)
-      .attr('ry', 4)
-      .attr('stroke-width', '1.5')
+      .attr('height', 28)
+      .attr('rx', 2)
+      .attr('ry', 2)
+      .attr('stroke-width', '1')
       .style('display', 'none');
 
     // d) Text 1 — type icon letter
@@ -761,11 +720,11 @@ export default function NexusGraph({
     nodeContentEnter.append('rect')
       .attr('class', 'selection-rect')
       .attr('x', -64)
-      .attr('y', -20)
+      .attr('y', -18)
       .attr('width', 128)
-      .attr('height', 40)
-      .attr('rx', 6)
-      .attr('ry', 6)
+      .attr('height', 36)
+      .attr('rx', 4)
+      .attr('ry', 4)
       .attr('fill', 'none')
       .attr('stroke-width', '2')
       .style('pointer-events', 'none')
@@ -785,18 +744,36 @@ export default function NexusGraph({
     nodeGroupsMerged.each(function(d) {
       const el = d3.select(this);
       const isTask = d.type === 'task';
-      const color = isTask ? 'rgba(55, 138, 221, 0.7)' : (d.color || getAgentColor(d.agentId));
-      const isAgentActive = activeAgents.includes(d.agentId);
+      const isFix = d.type === 'fix';
       const isFile = d.type === 'file';
       const isIssue = d.type === 'issue';
       const isCodeMode = mode === 'code';
 
+      // Parse severity for code mode issue nodes
+      const color = isTask ? 'rgba(55, 138, 221, 0.7)' : (d.color || getAgentColor(d.agentId));
+      let activeColor = color;
+      if (isCodeMode) {
+        if (isIssue) {
+          const contentLower = d.content ? d.content.toLowerCase() : '';
+          if (contentLower.includes('severity: high')) {
+            activeColor = 'var(--nx-challenger)';
+          } else if (contentLower.includes('severity: medium')) {
+            activeColor = '#BA7517';
+          } else {
+            activeColor = 'var(--nx-text-muted)';
+          }
+        } else if (isFix) {
+          activeColor = 'var(--nx-factchecker)';
+        }
+      }
+
+      const isAgentActive = activeAgents.includes(d.agentId);
       const isSynthesisNode = d.agentId === 'synthesizer' && d.type === 'claim';
 
-      // Circle 1 - outer ambient glow (hide for issues, tasks, or files in code mode)
+      // Circle 1 - outer ambient glow (hide for issues, tasks, fixes, or files in code mode)
       const glowOuter = el.select('.glow-outer')
-        .style('display', (isIssue || isTask || (isCodeMode && isFile)) ? 'none' : 'block')
-        .attr('fill', color)
+        .style('display', (isIssue || isTask || isFix || (isCodeMode && isFile)) ? 'none' : 'block')
+        .attr('fill', activeColor)
         .attr('fill-opacity', isSynthesisNode ? 0.3 : 0.06);
 
       if (isSynthesisNode) {
@@ -805,14 +782,14 @@ export default function NexusGraph({
         glowOuter.style('filter', null);
       }
 
-      // Circle 2 - mid ring (hide for issues, tasks, or files in code mode)
+      // Circle 2 - mid ring (hide for issues, tasks, fixes, or files in code mode)
       const midRing = el.select('.glow-mid');
       midRing
-        .attr('stroke', color)
+        .attr('stroke', activeColor)
         .attr('stroke-opacity', 0.4)
-        .style('display', (isAgentActive && !isIssue && !isTask && !(isCodeMode && isFile)) ? 'block' : 'none');
+        .style('display', (isAgentActive && !isIssue && !isTask && !isFix && !(isCodeMode && isFile)) ? 'block' : 'none');
 
-      if (isAgentActive && !isIssue && !isTask && !(isCodeMode && isFile)) {
+      if (isAgentActive && !isIssue && !isTask && !isFix && !(isCodeMode && isFile)) {
         midRing.style('animation', 'nx-pulse-ring 2s ease-out infinite');
         midRing.style('transform-origin', 'center');
         midRing.style('transform-box', 'fill-box');
@@ -820,23 +797,23 @@ export default function NexusGraph({
         midRing.style('animation', null);
       }
 
-      // Circle 3 - inner circle (hide for files in code mode, adjust size for issues or tasks)
-      const r = isSynthesisNode ? 30 : (isIssue ? 12 : (isTask ? 16 : 22));
+      // Circle 3 - inner circle (hide for files in code mode, adjust size for issues/fixes/tasks)
+      const r = isSynthesisNode ? 30 : (isIssue ? (isCodeMode ? 14 : 12) : (isFix ? 12 : (isTask ? 16 : 22)));
       el.select('.inner-circle')
         .style('display', (isCodeMode && isFile) ? 'none' : 'block')
         .attr('r', r)
-        .attr('fill', color)
-        .attr('fill-opacity', isIssue ? 0.9 : 0.15)
-        .attr('stroke', color)
+        .attr('fill', activeColor)
+        .attr('fill-opacity', (isIssue || isFix) ? 0.9 : 0.15)
+        .attr('stroke', activeColor)
         .attr('stroke-opacity', isTask ? 0.7 : 0.9)
         .attr('stroke-dasharray', isTask ? '3 2' : null);
 
       // Rect for files in code mode
       el.select('.node-rect')
         .style('display', (isCodeMode && isFile) ? 'block' : 'none')
-        .attr('fill', color)
-        .attr('fill-opacity', 0.15)
-        .attr('stroke', color)
+        .attr('fill', activeColor)
+        .attr('fill-opacity', 0.1)
+        .attr('stroke', 'var(--nx-codeanalyst)')
         .attr('stroke-opacity', 0.9);
 
       // Text 1 - icon letter (adjust position/size dynamically)
@@ -852,40 +829,38 @@ export default function NexusGraph({
 
       if (isCodeMode && isFile) {
         el.select('.node-icon')
-          .attr('x', -48)
-          .attr('y', 0)
-          .attr('font-size', '13px')
-          .attr('fill', color)
-          .attr('text-anchor', 'start')
-          .attr('dominant-baseline', 'central')
-          .text(iconText);
+          .text('');
+
+        const fileLabel = displayLabel.length > 18
+          ? displayLabel.slice(0, 16) + '…'
+          : displayLabel;
 
         el.select('.node-label')
-          .attr('x', -28)
+          .attr('x', 0)
           .attr('y', 0)
           .attr('font-size', '10px')
           .attr('fill', 'rgba(255, 255, 255, 0.85)')
-          .attr('text-anchor', 'start')
+          .attr('text-anchor', 'middle')
           .attr('dominant-baseline', 'central')
-          .text(truncatedLabel);
+          .text(fileLabel);
       } else {
         el.select('.node-icon')
           .attr('x', 0)
           .attr('y', 0)
-          .attr('font-size', isIssue ? '10px' : (isTask ? '10px' : '13px'))
-          .attr('fill', (isIssue || isTask) ? '#ffffff' : color)
+          .attr('font-size', (isIssue || isFix) ? '10px' : (isTask ? '10px' : '13px'))
+          .attr('fill', (isIssue || isTask || isFix) ? '#ffffff' : activeColor)
           .attr('text-anchor', 'middle')
           .attr('dominant-baseline', 'central')
           .text(iconText);
 
         el.select('.node-label')
           .attr('x', 0)
-          .attr('y', isIssue ? 24 : (isTask ? 28 : 36))
-          .attr('font-size', isTask ? '9px' : '10px')
+          .attr('y', isIssue ? 22 : (isTask ? 28 : 36))
+          .attr('font-size', (isIssue && isCodeMode) ? '9px' : (isTask ? '9px' : '10px'))
           .attr('fill', 'rgba(255, 255, 255, 0.65)')
           .attr('text-anchor', 'middle')
-          .attr('dominant-baseline', 'alphabetic')
-          .text(truncatedLabel);
+          .attr('dominant-baseline', isIssue ? 'central' : 'alphabetic')
+          .text((isIssue && isCodeMode) ? 'ISSUE' : truncatedLabel);
       }
 
       // Confidence ring
@@ -902,7 +877,7 @@ export default function NexusGraph({
       // Selection ring: only for circles
       el.select('.selection-ring')
         .style('display', (isCodeMode && isFile) ? 'none' : 'block')
-        .attr('r', isSynthesisNode ? 54 : (isTask ? 20 : 46))
+        .attr('r', isSynthesisNode ? 54 : (isIssue ? (isCodeMode ? 20 : 18) : (isFix ? 18 : (isTask ? 20 : 46))))
         .attr('stroke', 'rgba(255,255,255,0.6)')
         .attr('stroke-opacity', isSelected ? 1 : 0)
         .style('transition', 'stroke-opacity 150ms');
@@ -1007,7 +982,7 @@ export default function NexusGraph({
 
   return (
     <div 
-      className="w-full h-full relative overflow-hidden"
+      className="w-full h-full relative"
       data-mode={mode}
       data-status={isLoading ? 'running' : 'complete'}
       style={{
@@ -1015,6 +990,8 @@ export default function NexusGraph({
         backgroundImage: 'radial-gradient(var(--nx-canvas-grid) 1.5px, transparent 1.5px)',
         backgroundSize: '24px 24px',
         transition: 'background-color 0.4s ease, border-color 0.4s ease',
+        overflowX: 'hidden',
+        overflowY: mode === 'code' ? 'auto' : 'hidden',
       }}
     >
       {/* Self-contained CSS injection for keyframe pulse animations */}
@@ -1041,7 +1018,10 @@ export default function NexusGraph({
       `}</style>
       <svg 
         ref={svgRef} 
-        className="w-full h-full block"
+        className="w-full block"
+        style={{
+          height: mode === 'code' ? Math.max(height, nodes.filter(n => n.type === 'file').length * 60 + 160) : '100%'
+        }}
         onClick={(event) => {
           if (event.target === svgRef.current) {
             onNodeClick?.(null);
@@ -1112,6 +1092,46 @@ export default function NexusGraph({
                 textAnchor="middle"
               >
                 SYNTHESIS
+              </text>
+            </g>
+          )}
+          {mode === 'code' && (
+            <g className="code-background-decorations" style={{ pointerEvents: 'none' }}>
+              <text
+                x={80 + ((width - 160) / 3) * 0.3}
+                y={60}
+                fontSize={11}
+                fontFamily="var(--nx-font-mono), monospace"
+                fontWeight={700}
+                fill="rgba(255, 255, 255, 0.20)"
+                letterSpacing="0.15em"
+                textAnchor="middle"
+              >
+                FILES
+              </text>
+              <text
+                x={80 + ((width - 160) / 3) * 1.2}
+                y={60}
+                fontSize={11}
+                fontFamily="var(--nx-font-mono), monospace"
+                fontWeight={700}
+                fill="rgba(255, 255, 255, 0.20)"
+                letterSpacing="0.15em"
+                textAnchor="middle"
+              >
+                ISSUES
+              </text>
+              <text
+                x={80 + ((width - 160) / 3) * 2.1}
+                y={60}
+                fontSize={11}
+                fontFamily="var(--nx-font-mono), monospace"
+                fontWeight={700}
+                fill="rgba(255, 255, 255, 0.20)"
+                letterSpacing="0.15em"
+                textAnchor="middle"
+              >
+                SUGGESTIONS
               </text>
             </g>
           )}
