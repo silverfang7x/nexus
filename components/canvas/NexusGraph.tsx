@@ -5,7 +5,6 @@ import * as d3 from 'd3';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GraphNode, GraphEdge, AgentId, EdgeType, NexusMode } from '@/types/nexus';
 import { getAgentColor } from './GraphNode';
-import LoadingOrbit from './LoadingOrbit';
 
 interface SimNode extends GraphNode, d3.SimulationNodeDatum {}
 
@@ -1018,28 +1017,6 @@ export default function NexusGraph({
         transition: 'background-color 0.4s ease, border-color 0.4s ease',
       }}
     >
-      <AnimatePresence>
-        {status === 'running' && nodes.length === 0 && (
-          <motion.div
-            key="loading-orbit"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 20,
-              pointerEvents: 'none'
-            }}
-          >
-            <LoadingOrbit activeAgents={activeAgents} />
-          </motion.div>
-        )}
-      </AnimatePresence>
       {/* Self-contained CSS injection for keyframe pulse animations */}
       <style>{`
         @keyframes glow-pulse {

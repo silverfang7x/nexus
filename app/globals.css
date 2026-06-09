@@ -357,3 +357,9 @@ body > * {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+@keyframes nx-orbit {
+  from { transform: rotate(0deg) translateX(35px); }
+  to   { transform: rotate(360deg) translateX(35px); }
+}
+

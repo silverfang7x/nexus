@@ -14,6 +14,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { AgentId, AgentStatus, NexusMode, GraphNode, AgentEvent } from '@/types/nexus';
 import { getAgentColor } from '@/components/canvas/GraphNode';
 import NodeDetailPanel from '@/components/canvas/NodeDetailPanel';
+import { CanvasLoader } from '@/components/canvas/CanvasLoader';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -180,6 +181,23 @@ export default function Dashboard() {
     useAgentStream();
 
   useGraph(nodes, edges);
+
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [canvasDimensions, setCanvasDimensions] = useState({ width: 800, height: 600 });
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      if (!entries || entries.length === 0) return;
+      const { width, height } = entries[0].contentRect;
+      setCanvasDimensions({ width, height });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const isRunning = status === 'running';
 
   const isMobile = useMediaQuery('(max-width: 767px)');
 
@@ -670,6 +688,7 @@ export default function Dashboard() {
 
         {/* ── CENTER CANVAS ───────────────────────────────────────────── */}
         <motion.div
+          ref={canvasRef}
           animate={{ scale: graphScale }}
           transition={{ duration: 0.15, ease: 'easeInOut' }}
           style={{
@@ -682,6 +701,10 @@ export default function Dashboard() {
             paddingBottom: isMobile ? 80 : 0,
           }}
         >
+          {isRunning && nodes.length === 0 && (
+            <CanvasLoader width={canvasDimensions.width} height={canvasDimensions.height} />
+          )}
+
           <NexusGraph
             nodes={nodes}
             edges={edges}
