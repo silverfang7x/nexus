@@ -786,7 +786,7 @@ export default function NexusGraph({
       const el = d3.select(this);
       const isTask = d.type === 'task';
       const color = isTask ? 'rgba(55, 138, 221, 0.7)' : (d.color || getAgentColor(d.agentId));
-      const isAgentActive = activeAgents.includes(d.agentId);
+      const isAgentActive = activeAgents.length > 0 && activeAgents.includes(d.agentId);
       const isFile = d.type === 'file';
       const isIssue = d.type === 'issue';
       const isCodeMode = mode === 'code';

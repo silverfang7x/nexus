@@ -1012,6 +1012,7 @@ export default function Dashboard() {
           <NexusGraph
             nodes={nodes}
             edges={edges}
+            activeAgents={activeAgents}
             onNodeClick={setSelectedNode}
             selectedNodeId={selectedNode?.id ?? null}
             mode={activeMode}

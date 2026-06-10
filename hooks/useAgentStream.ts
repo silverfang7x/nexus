@@ -372,13 +372,26 @@ export function useAgentStream(
   useEffect(() => {
     if (status === 'complete') {
       saveSession();
+      onStateChange((prev) => {
+        const nextStatuses = { ...prev.agentStatuses };
+        let changed = false;
+        for (const key in nextStatuses) {
+          if (nextStatuses[key] !== 'done') {
+            nextStatuses[key] = 'done';
+            changed = true;
+          }
+        }
+        return changed ? { agentStatuses: nextStatuses } : {};
+      });
     }
-  }, [status, saveSession]);
+  }, [status, saveSession, onStateChange]);
 
   // Compute activeAgents list
-  const activeAgents = Object.entries(currentState.agentStatuses)
-    .filter((entry) => entry[1] === 'thinking' || entry[1] === 'responding' || entry[1] === 'streaming')
-    .map((entry) => entry[0] as AgentId);
+  const activeAgents = (status === 'complete' || status === 'error')
+    ? []
+    : Object.entries(currentState.agentStatuses)
+        .filter((entry) => entry[1] === 'thinking' || entry[1] === 'responding' || entry[1] === 'streaming')
+        .map((entry) => entry[0] as AgentId);
 
   return {
     query: currentState.query,
