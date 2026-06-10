@@ -2,6 +2,7 @@
 
 [![Vercel Deployment](https://img.shields.io/badge/Live%20Demo-Vercel-brightgreen?style=for-the-badge&logo=vercel)](https://nexus-gules-seven.vercel.app)
 [![YouTube Video](https://img.shields.io/badge/Watch-Demo%20Video-red?style=for-the-badge&logo=youtube)](https://youtu.be/Ksdkn-romsg)
+[![Presentation Slides](https://img.shields.io/badge/Presentation-Slides-blueviolet?style=for-the-badge&logo=google-slides)](https://docs.google.com/presentation/d/1mCbiEOPFQiWc3DvAshyVsK7lgXhpnxHB7pVb3a5Il7Q/edit?usp=sharing)
 [![Next.js Version](https://img.shields.io/badge/Next.js-16.2.7-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
 [![React Version](https://img.shields.io/badge/React-19.2.4-blue?style=for-the-badge&logo=react)](https://react.dev)
 [![D3.js Version](https://img.shields.io/badge/D3.js-7.9.0-orange?style=for-the-badge&logo=d3.js)](https://d3js.org)
@@ -11,6 +12,7 @@ NEXUS is an advanced agentic reasoning platform that breaks the boundaries of li
 **🔗 Experience the Live Application:** [https://nexus-gules-seven.vercel.app](https://nexus-gules-seven.vercel.app)
 
 **📺 Watch the Video Demonstration:** [https://youtu.be/Ksdkn-romsg](https://youtu.be/Ksdkn-romsg)
+**📊 View the Presentation Slides:** [Google Slides](https://docs.google.com/presentation/d/1mCbiEOPFQiWc3DvAshyVsK7lgXhpnxHB7pVb3a5Il7Q/edit?usp=sharing)
 
 ---
 
