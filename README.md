@@ -12,6 +12,7 @@ NEXUS is an advanced agentic reasoning platform that breaks the boundaries of li
 **🔗 Experience the Live Application:** [https://nexus-gules-seven.vercel.app](https://nexus-gules-seven.vercel.app)
 
 **📺 Watch the Video Demonstration:** [https://youtu.be/Ksdkn-romsg](https://youtu.be/Ksdkn-romsg)
+
 **📊 View the Presentation Slides:** [Google Slides](https://docs.google.com/presentation/d/1mCbiEOPFQiWc3DvAshyVsK7lgXhpnxHB7pVb3a5Il7Q/edit?usp=sharing)
 
 ---
