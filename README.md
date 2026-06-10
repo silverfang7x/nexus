@@ -1,6 +1,7 @@
 # NEXUS — Autonomous Multi-Agent Intelligence Platform
 
 [![Vercel Deployment](https://img.shields.io/badge/Live%20Demo-Vercel-brightgreen?style=for-the-badge&logo=vercel)](https://nexus-gules-seven.vercel.app)
+[![YouTube Video](https://img.shields.io/badge/Watch-Demo%20Video-red?style=for-the-badge&logo=youtube)](https://youtu.be/Ksdkn-romsg)
 [![Next.js Version](https://img.shields.io/badge/Next.js-16.2.7-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
 [![React Version](https://img.shields.io/badge/React-19.2.4-blue?style=for-the-badge&logo=react)](https://react.dev)
 [![D3.js Version](https://img.shields.io/badge/D3.js-7.9.0-orange?style=for-the-badge&logo=d3.js)](https://d3js.org)
@@ -8,6 +9,7 @@
 NEXUS is an advanced agentic reasoning platform that breaks the boundaries of linear chat interfaces. Instead of a single chatbot answering in isolation, NEXUS orchestrates a collaborative swarm of specialized AI agents that argue, research, analyze, and synthesize knowledge in real-time. Every thought, claim, and dependency is rendered as a live, interactive force-directed graph on an infinite canvas.
 
 **🔗 Experience the Live Application:** [https://nexus-gules-seven.vercel.app](https://nexus-gules-seven.vercel.app)
+**📺 Watch the Video Demonstration:** [https://youtu.be/Ksdkn-romsg](https://youtu.be/Ksdkn-romsg)
 
 ---
 
