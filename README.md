@@ -9,6 +9,7 @@
 NEXUS is an advanced agentic reasoning platform that breaks the boundaries of linear chat interfaces. Instead of a single chatbot answering in isolation, NEXUS orchestrates a collaborative swarm of specialized AI agents that argue, research, analyze, and synthesize knowledge in real-time. Every thought, claim, and dependency is rendered as a live, interactive force-directed graph on an infinite canvas.
 
 **🔗 Experience the Live Application:** [https://nexus-gules-seven.vercel.app](https://nexus-gules-seven.vercel.app)
+
 **📺 Watch the Video Demonstration:** [https://youtu.be/Ksdkn-romsg](https://youtu.be/Ksdkn-romsg)
 
 ---
