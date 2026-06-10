@@ -186,7 +186,7 @@ export function useAgentStream(
                     nextStatuses[key] = 'done';
                   }
                   return {
-                    structuredOutput: event.payload.text || '',
+                    structuredOutput: event.payload.text !== undefined ? event.payload.text : (prev.structuredOutput || ''),
                     isRunning: false,
                     hasRun: true,
                     agentStatuses: nextStatuses

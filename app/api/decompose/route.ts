@@ -1,3 +1,4 @@
+export const maxDuration = 60
 import { AgentEvent } from "@/types/nexus";
 import { decomposeMilestone } from "@/lib/agents/taskDecomposer";
 import crypto from "crypto";

@@ -661,6 +661,7 @@ export default function Dashboard() {
       <div className="output-scroll-panel" style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}>
         <VerdictPanel 
           output={verdict} 
+          rawOutput={currentState.agentThoughts['synthesizer'] || verdict}
           mode={activeMode}
           nodeCount={nodes.length}
           edgeCount={edges.length}
@@ -1237,6 +1238,7 @@ export default function Dashboard() {
             >
               <VerdictPanel 
                 output={verdict} 
+                rawOutput={currentState.agentThoughts['synthesizer'] || verdict}
                 mode={activeMode}
                 nodeCount={nodes.length}
                 edgeCount={edges.length}

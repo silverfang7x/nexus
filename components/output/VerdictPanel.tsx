@@ -7,6 +7,7 @@ import { NexusMode, GraphNode, GraphEdge } from '@/types/nexus';
 
 export interface VerdictPanelProps {
   output: unknown;
+  rawOutput?: string;
   mode: NexusMode;
   nodeCount?: number;
   edgeCount?: number;
@@ -772,12 +773,13 @@ function RawTextView({ verdict }: { verdict: string }) {
 
 export default function VerdictPanel({
   output,
+  rawOutput = '',
   mode,
   nodeCount = 0,
   edgeCount = 0,
   isRunning = false,
 }: VerdictPanelProps) {
-  const verdict = typeof output === 'string' ? output : (output ? JSON.stringify(output) : '');
+  const verdict = (typeof output === 'string' ? output : (output ? JSON.stringify(output) : '')) || rawOutput || '';
 
   // Parse JSON at the top — MUST be before any early returns to obey Rules of Hooks
   const parsed = useMemo(() => {
@@ -806,7 +808,7 @@ export default function VerdictPanel({
   }
 
   // ── 2. Empty state ────────────────────────────────────────────────────────
-  if (!verdict) {
+  if (!verdict && !rawOutput) {
     const hints: Record<NexusMode, string> = {
       debate: 'Enter any question or controversial topic',
       research: 'Enter a topic to research and synthesise',
@@ -839,6 +841,28 @@ export default function VerdictPanel({
             {hints[mode]}
           </span>
         </div>
+      </div>
+    );
+  }
+
+  // Fallback — render raw text if code mode fails to parse
+  if (mode === 'code' && !parsed) {
+    return (
+      <div style={{ padding: 16 }}>
+        <p className="label-xs" style={{ marginBottom: 8 }}>
+          OUTPUT
+        </p>
+        <pre style={{
+          fontFamily: 'var(--nx-font-mono)',
+          fontSize: 10,
+          color: 'rgba(255,255,255,0.6)',
+          lineHeight: 1.7,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          margin: 0
+        }}>
+          {verdict}
+        </pre>
       </div>
     );
   }

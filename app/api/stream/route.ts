@@ -1,3 +1,4 @@
+export const maxDuration = 60
 import { AgentEvent, NexusMode, GraphNode } from "@/types/nexus";
 import { runDebateMode, runPlanMode, runResearchMode } from "@/lib/agents/orchestrator";
 import { runCodeMode } from "@/lib/agents/codeanalyst";
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
           if (fs.existsSync(mockPath)) {
             const fileContent = fs.readFileSync(mockPath, "utf8");
             const mockData = JSON.parse(fileContent) as AgentEvent[];
-            
+
             for (const event of mockData) {
               send(event);
               await new Promise(resolve => setTimeout(resolve, 400));
@@ -101,7 +102,7 @@ export async function POST(request: Request) {
             existingContext = {
               nodeCount: continuationContext.existingNodes.length,
               nodeSummaries: continuationContext.existingNodes
-                .filter(n => ['feature','milestone','claim'].includes(n.type))
+                .filter(n => ['feature', 'milestone', 'claim'].includes(n.type))
                 .slice(0, 8)
                 .map(n => n.label + ': ' + n.content.slice(0, 60)),
               previousQuery: continuationContext.previousQuery,
